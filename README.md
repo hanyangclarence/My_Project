@@ -1,6 +1,7 @@
 <div align="center">  
 
-# UniMuMo: Unified Text, Music and Motion Generation
+[//]: # (# UniMuMo: Unified Text, Music and Motion Generation)
+# Project Name
 
 [//]: # (<a href='https://www.google.com/'><img src='https://img.shields.io/badge/Demo-Page-blue'></a> )
 
