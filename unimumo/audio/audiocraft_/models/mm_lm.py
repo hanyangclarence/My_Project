@@ -183,7 +183,7 @@ class LMModel(StreamingModule):
         assert K == self.num_codebooks, "Sequence shape must match the specified number of codebooks"
 
         music_input = sum([self.emb[k](sequence[:, k, :S//2]) for k in range(K)])  # [B, S//2, dim]
-        motion_input = sum([self.emb[k](sequence[:, k, S//2:]) for k in range(K)])  # [B, S//2, dim]
+        motion_input = sum([self.motion_emb[k](sequence[:, k, S//2:]) for k in range(K)])  # [B, S//2, dim]
         input_ = torch.cat((music_input, motion_input), dim=1)  # [B, S, dim]
 
         if condition_tensors is None:
