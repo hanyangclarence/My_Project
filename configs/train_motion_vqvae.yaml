@@ -22,6 +22,7 @@ model:
       activation: 'relu'
     music_config:
       vqvae_ckpt: 'pretrained/music_vqvae.bin'
+      freeze_codebook: True
     pre_post_quantize_config:
       pre_quant_conv_mult: 4
       post_quant_conv_mult: 4

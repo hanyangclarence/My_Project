@@ -37,7 +37,7 @@ data:
     train:
       target: unimumo.data.music_motion_dataset.MusicMotionDataset
       params:
-        split: "val"
+        split: "train"
         music_dir: 'data/music/audios'
         motion_dir: 'data/motion'
         music_meta_dir: 'data/music'
@@ -82,5 +82,6 @@ lightning:
 
   trainer:
     benchmark: True
-    devices: 1
-    num_nodes: 1
+    devices: 6
+    num_nodes: 8
+    strategy: ddp

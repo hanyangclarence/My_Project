@@ -85,7 +85,7 @@ class MotionVQVAE(pl.LightningModule):
         print(f"Restored from {path}")
 
     def instantiate_music_vqvae(
-        self, vqvae_ckpt: str, vqvae_config: tp.Optional[tp.Any] = None
+        self, vqvae_ckpt: str, vqvae_config: tp.Optional[tp.Any] = None, freeze_codebook: bool = True
     ) -> tp.Tuple[SEANetEncoder, ResidualVectorQuantizer]:
         if os.path.exists(vqvae_ckpt):
             pkg = torch.load(vqvae_ckpt, map_location='cpu')
@@ -101,8 +101,10 @@ class MotionVQVAE(pl.LightningModule):
 
         for p in encoder.parameters():
             p.requires_grad = False
-        # set codebook entries unchangeable during training
-        quantizer.freeze_codebook = True
+
+        if freeze_codebook:
+            # set codebook entries unchangeable during training
+            quantizer.freeze_codebook = True
 
         return encoder, quantizer
 
@@ -164,6 +166,8 @@ class MotionVQVAE(pl.LightningModule):
     def training_step(self, batch: tp.Dict[str, torch.Tensor], batch_idx: int):
         motion_recon, commitment_loss = self(batch)
         aeloss, log_dict_ae = self.loss(batch[self.motion_key], motion_recon, commitment_loss, split="train")
+
+        print(self.quantizer.state_dict())
 
         self.log("aeloss", aeloss, prog_bar=True, logger=True, on_step=True, on_epoch=False)
         self.log_dict(log_dict_ae, prog_bar=True, logger=True, on_step=True, on_epoch=False)
