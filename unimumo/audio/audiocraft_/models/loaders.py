@@ -98,13 +98,11 @@ def load_mm_lm_model(file_or_url_or_id: tp.Union[Path, str], device='cpu', cache
     my_model_dict = model.state_dict()
     new_dict = {k: v for k, v in pretrained_dict.items() if k in my_model_dict.keys()}
 
-    # special case: initialize first 2049 tokens in embedders with pretrained weight
-    for k, v in my_model_dict.items():
-        if k.startswith('emb.'):
-            pretrained_embedding = new_dict[k]
-            initial_embedding = my_model_dict[k]
-            initial_embedding[:pretrained_embedding.shape[0]] = pretrained_embedding
-            new_dict[k] = initial_embedding
+    # initialize motion emb with the same weight as original emb
+    for k in my_model_dict.keys():
+        if k.startswith('motion_emb.'):
+            music_emb_key = k.replace('motion_', '')
+            new_dict[k] = pretrained_dict[music_emb_key].clone()
 
     my_model_dict.update(new_dict)
 

@@ -580,6 +580,7 @@ class StreamingTransformerLayer(nn.TransformerEncoderLayer):
             x = x + self.layer_scale_1(
                 self._sa_block(self.norm1(x), src_mask, src_key_padding_mask))
             if cross_attention_src is not None:
+                print(f'use cross attention: {x.shape} with {cross_attention_src.shape}')
                 x = x + self.layer_scale_cross(
                     self._cross_attention_block(
                         self.norm_cross(x), cross_attention_src))
@@ -588,6 +589,7 @@ class StreamingTransformerLayer(nn.TransformerEncoderLayer):
             x = self.norm1(x + self.layer_scale_1(
                 self._sa_block(x, src_mask, src_key_padding_mask)))
             if cross_attention_src is not None:
+                print(f'use cross attention: {x.shape} with {cross_attention_src.shape}')
                 x = self.norm_cross(
                     x + self.layer_scale_cross(
                         self._cross_attention_block(src, cross_attention_src)))
