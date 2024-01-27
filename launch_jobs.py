@@ -56,3 +56,5 @@ if __name__ == "__main__":
         time.sleep(10)
         start_ratio += increment
         job_count += 1
+
+    os.system('rm run_test_jobs.sh')
