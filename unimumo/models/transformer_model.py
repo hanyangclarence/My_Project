@@ -5,6 +5,7 @@ import torch
 import pytorch_lightning as pl
 import torch.nn.functional as F
 from torch.optim.lr_scheduler import LambdaLR
+import random
 
 from unimumo.util import instantiate_from_config
 from unimumo.audio.audiocraft_.models.mm_lm import LMModel, ConditionTensors
@@ -133,7 +134,9 @@ class MusicMotionTransformer(pl.LightningModule):
         music_code, motion_code, text_cond = batch[self.music_key], batch[self.motion_key], batch[self.text_cond_key]
 
         if self.stage == 'train_music_motion':  # train the music motion lm
-            text_condition = self.prepare_text_condition(text_cond)
+            # randomly choose the mode on this training step
+            mode = random.choice(['music_motion', 'music2motion', 'motion2music'])
+            text_condition = self.prepare_text_condition(text_cond, mode)
 
             music_output, motion_output = self.model.compute_predictions(
                 music_code, motion_code, [], condition_tensors=text_condition
@@ -273,7 +276,11 @@ class MusicMotionTransformer(pl.LightningModule):
         ce = ce / K
         return ce, ce_per_codebook
 
-    def prepare_text_condition(self, descriptions: tp.List[str]) -> ConditionTensors:
+    def prepare_text_condition(self, descriptions: tp.List[str], mode: str) -> ConditionTensors:
+        if mode == 'music2motion':
+            # remove music descriptions
+            for desc in descriptions:
+                motion_description = desc.split('<music_prompt_end> ')[-1]
         attributes = [ConditioningAttributes(text={'description': description}) for description in descriptions]
 
         attributes = self.model.cfg_dropout(attributes)
