@@ -11,11 +11,11 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "-s",
-        "--save_dir",
+        "--save_path",
         type=str,
         required=False,
         help="The directory to save the final checkpoint",
-        default="./unimumo_checkpoint",
+        default="./unimumo_checkpoint/unimumo_model.ckpt",
     )
     parser.add_argument(
         "--music_vqvae",
@@ -68,7 +68,16 @@ if __name__ == "__main__":
     assert os.path.exists(args.mm_lm_ckpt)
     assert os.path.exists(args.mm_lm_config)
     assert os.path.exists(args.motion_metadata_dir)
-    os.makedirs(args.save_dir, exist_ok=True)
+
+    save_path = args.save_path
+    if len(save_path.split('.')) == 1:
+        save_dir = save_path
+        save_path = os.path.join(save_path, 'unimumo_model.ckpt')
+    else:
+        assert save_path.split('.')[-1] == 'ckpt', 'The filename should be ended with .ckpt'
+        save_dir = '/'.join(save_path.split('/')[:-1])
+    if len(save_dir) > 0:
+        os.makedirs(save_dir, exist_ok=True)
 
     unimumo_state_dict = {}
 
@@ -91,5 +100,5 @@ if __name__ == "__main__":
     unimumo_state_dict['motion_mean'] = motion_mean
     unimumo_state_dict['motion_std'] = motion_std
 
-    torch.save(unimumo_state_dict, os.path.join(args.save_dir, 'unimumo_model.ckpt'))
+    torch.save(unimumo_state_dict, os.path.join(save_path))
 
