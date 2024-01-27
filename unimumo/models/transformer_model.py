@@ -139,7 +139,7 @@ class MusicMotionTransformer(pl.LightningModule):
             text_condition = self.prepare_text_condition(text_cond, mode)
 
             music_output, motion_output = self.model.compute_predictions(
-                music_code, motion_code, [], condition_tensors=text_condition
+                music_code, motion_code, mode, [], condition_tensors=text_condition
             )
             music_logits, music_mask = music_output.logits, music_output.mask
             motion_logits, motion_mask = motion_output.logits, motion_output.mask
@@ -149,13 +149,14 @@ class MusicMotionTransformer(pl.LightningModule):
             total_loss = music_loss * (1 - self.motion_weight) + motion_loss * self.motion_weight
 
             self.log("train/loss", total_loss, prog_bar=True, logger=True, on_step=True, on_epoch=False)
-            self.log("train/music_loss", music_loss, prog_bar=True, logger=True, on_step=True, on_epoch=False)
-            self.log("train/motion_loss", motion_loss, prog_bar=True, logger=True, on_step=True, on_epoch=False)
+            self.log(f"train/{mode}_loss", total_loss, prog_bar=True, logger=True, on_step=True, on_epoch=False)
+            self.log(f"train/{mode}_music_loss", music_loss, prog_bar=True, logger=True, on_step=True, on_epoch=False)
+            self.log(f"train/{mode}_motion_loss", motion_loss, prog_bar=True, logger=True, on_step=True, on_epoch=False)
 
             log_dict = {}
-            for k in range(len(music_loss_per_codebook)):
-                log_dict[f'train/music_ce_q{k + 1}'] = music_loss_per_codebook[k]
-                log_dict[f'train/motion_ce_q{k + 1}'] = motion_loss_per_codebook[k]
+            # for k in range(len(music_loss_per_codebook)):
+            #     log_dict[f'train/music_ce_q{k + 1}'] = music_loss_per_codebook[k]
+            #     log_dict[f'train/motion_ce_q{k + 1}'] = motion_loss_per_codebook[k]
 
             optimizer = self.optimizers().optimizer
             lr_scheduler = self.lr_schedulers()
@@ -183,8 +184,10 @@ class MusicMotionTransformer(pl.LightningModule):
             batch_size = len(text_cond)
 
             # use null condition for music motion network
-            descriptions: tp.List[tp.Optional[str]] = [None] * batch_size
-            null_text_condition = self.prepare_text_condition(descriptions)
+            descriptions: tp.List[str] = [
+                '<music_prompt_start> <music_prompt_end> <motion_prompt_start> <motion_prompt_end>'
+            ] * batch_size
+            null_text_condition = self.prepare_text_condition(descriptions, mode='music_motion')
 
             # get music motion features using music motion LM
             with torch.no_grad():
@@ -214,10 +217,11 @@ class MusicMotionTransformer(pl.LightningModule):
         music_code, motion_code, text_cond = batch[self.music_key], batch[self.motion_key], batch[self.text_cond_key]
 
         if self.stage == 'train_music_motion':
-            text_condition = self.prepare_text_condition(text_cond)
+            mode = random.choice(['music_motion', 'music2motion', 'motion2music'])
+            text_condition = self.prepare_text_condition(text_cond, mode)
 
             music_output, motion_output = self.model.compute_predictions(
-                music_code, motion_code, [], condition_tensors=text_condition
+                music_code, motion_code, mode, [], condition_tensors=text_condition
             )
             music_logits, music_mask = music_output.logits, music_output.mask
             motion_logits, motion_mask = motion_output.logits, motion_output.mask
@@ -227,22 +231,25 @@ class MusicMotionTransformer(pl.LightningModule):
             total_loss = music_loss * (1 - self.motion_weight) + motion_loss * self.motion_weight
 
             self.log("val/loss", total_loss, prog_bar=True, logger=True, on_step=True, on_epoch=True)
-            self.log("val/music_loss", music_loss, prog_bar=True, logger=True, on_step=True, on_epoch=True)
-            self.log("val/motion_loss", motion_loss, prog_bar=True, logger=True, on_step=True, on_epoch=True)
+            self.log(f"val/{mode}_loss", total_loss, prog_bar=True, logger=True, on_step=True, on_epoch=True)
+            self.log(f"val/{mode}_music_loss", music_loss, prog_bar=True, logger=True, on_step=True, on_epoch=True)
+            self.log(f"val/{mode}_motion_loss", motion_loss, prog_bar=True, logger=True, on_step=True, on_epoch=True)
 
-            log_dict = {}
-            for k in range(len(music_loss_per_codebook)):
-                log_dict[f'val/music_ce_q{k + 1}'] = music_loss_per_codebook[k]
-                log_dict[f'val/motion_ce_q{k + 1}'] = motion_loss_per_codebook[k]
-
-            self.log_dict(log_dict, prog_bar=True, logger=True, on_step=True, on_epoch=True)
+            # log_dict = {}
+            # for k in range(len(music_loss_per_codebook)):
+            #     log_dict[f'val/music_ce_q{k + 1}'] = music_loss_per_codebook[k]
+            #     log_dict[f'val/motion_ce_q{k + 1}'] = motion_loss_per_codebook[k]
+            #
+            # self.log_dict(log_dict, prog_bar=True, logger=True, on_step=True, on_epoch=True)
 
         else:
             batch_size = len(text_cond)
 
             # use null condition for music motion network
-            descriptions: tp.List[tp.Optional[str]] = [None] * batch_size
-            null_text_condition = self.prepare_text_condition(descriptions)
+            descriptions: tp.List[str] = [
+                '<music_prompt_start> <music_prompt_end> <motion_prompt_start> <motion_prompt_end>'
+            ] * batch_size
+            null_text_condition = self.prepare_text_condition(descriptions, mode='music_motion')
 
             # get music motion features using music motion LM
             with torch.no_grad():
@@ -278,13 +285,34 @@ class MusicMotionTransformer(pl.LightningModule):
 
     def prepare_text_condition(self, descriptions: tp.List[str], mode: str) -> ConditionTensors:
         if mode == 'music2motion':
+            dropped_out_descriptions = []
             # remove music descriptions
             for desc in descriptions:
                 motion_description = desc.split('<music_prompt_end> ')[-1]
+                dropped_out_descriptions.append(
+                    '<music_prompt_start> <music_prompt_end> ' + motion_description
+                )
+            descriptions = dropped_out_descriptions
+        elif mode == 'motion2music':
+            dropped_out_descriptions = []
+            # remove motion descriptions
+            for desc in descriptions:
+                music_description = desc.split(' <motion_prompt_start>')[0]
+                dropped_out_descriptions.append(
+                    music_description + ' <motion_prompt_start> <motion_prompt_end>'
+                )
+            descriptions = dropped_out_descriptions
+        else:
+            assert mode == 'music_motion'
+
         attributes = [ConditioningAttributes(text={'description': description}) for description in descriptions]
 
         attributes = self.model.cfg_dropout(attributes)
+
         attributes = self.model.att_dropout(attributes)
+
+        # print drop out results for debug
+        print(f"{mode}: {self.model.training}, {attributes[0].text['description']}")
 
         tokenized = self.model.condition_provider.tokenize(attributes, device=self.device)
         condition_tensors = self.model.condition_provider(tokenized)
@@ -299,10 +327,10 @@ class MusicMotionTransformer(pl.LightningModule):
         temperature: tp.Optional[float] = None,
         return_result_only: bool = False
     ):
-        attributes = self._prepare_tokens_and_attributes(batch[self.text_cond_key])
+        attributes = self._prepare_tokens_and_attributes(batch[self.text_cond_key], mode='music_motion')
 
         music_gen, motion_gen = self._generate_tokens(
-            attributes, duration=duration, temperature=temperature,
+            attributes, mode='music_motion', duration=duration, temperature=temperature,
             conditional_guidance_scale=conditional_guidance_scale
         )
         if return_result_only:
@@ -321,15 +349,18 @@ class MusicMotionTransformer(pl.LightningModule):
         assert (music_code is None) ^ (motion_code is None), "Only one modality should be given."
         batch_size = music_code.shape[0] if music_code is not None else motion_code.shape[0]
         sequence_length = music_code.shape[-1] if music_code is not None else motion_code.shape[-1]
+        mode = 'music2motion' if music_code is not None else 'motion2music'
         if text_description is None:
-            text_description = [None] * batch_size
+            text_description = [
+                '<music_prompt_start> <music_prompt_end> <motion_prompt_start> <motion_prompt_end>'
+            ] * batch_size
 
         duration = sequence_length / self.feature_frame_rate
 
-        attributes = self._prepare_tokens_and_attributes(text_description)
+        attributes = self._prepare_tokens_and_attributes(text_description, mode=mode)
 
         music_gen, motion_gen = self._generate_tokens(
-            attributes, duration=duration, music_code=music_code, motion_code=motion_code,
+            attributes, mode=mode, duration=duration, music_code=music_code, motion_code=motion_code,
             temperature=temperature, conditional_guidance_scale=conditional_guidance_scale
         )
         if music_code is None and motion_code is not None:
@@ -344,8 +375,10 @@ class MusicMotionTransformer(pl.LightningModule):
     ) -> tp.Union[tp.List[str], tp.Tuple[tp.List[str], torch.LongTensor, torch.LongTensor]]:
         music_code, motion_code, text_cond = batch[self.music_key], batch[self.motion_key], batch[self.text_cond_key]
         batch_size = len(text_cond)
-        descriptions: tp.List[tp.Optional[str]] = [None] * batch_size
-        null_text_condition = self.prepare_text_condition(descriptions)  # use null condition
+        descriptions: tp.List[str] = [
+            '<music_prompt_start> <music_prompt_end> <motion_prompt_start> <motion_prompt_end>'
+        ] * batch_size
+        null_text_condition = self.prepare_text_condition(descriptions, mode='music_motion')  # use null condition
 
         music_motion_context = self.model.get_music_motion_context(
             music_code, motion_code, [], condition_tensors=null_text_condition
@@ -361,8 +394,34 @@ class MusicMotionTransformer(pl.LightningModule):
     def _prepare_tokens_and_attributes(
         self,
         descriptions: tp.Sequence[tp.Optional[str]],
+        mode: str
     ) -> tp.List[ConditioningAttributes]:
+        if mode == 'music2motion':
+            dropped_out_descriptions = []
+            # remove music descriptions
+            for desc in descriptions:
+                motion_description = desc.split('<music_prompt_end> ')[-1]
+                dropped_out_descriptions.append(
+                    '<music_prompt_start> <music_prompt_end> ' + motion_description
+                )
+            descriptions = dropped_out_descriptions
+        elif mode == 'motion2music':
+            dropped_out_descriptions = []
+            # remove motion descriptions
+            for desc in descriptions:
+                music_description = desc.split(' <motion_prompt_start>')[0]
+                dropped_out_descriptions.append(
+                    music_description + ' <motion_prompt_start> <motion_prompt_end>'
+                )
+            descriptions = dropped_out_descriptions
+        else:
+            assert mode == 'music_motion'
+
         attributes = [ConditioningAttributes(text={'description': description}) for description in descriptions]
+
+        # print debug info:
+        for i in range(len(attributes)):
+            print(f"Generating in {mode} with prompt {attributes[i].text['description']}")
 
         for attr in attributes:
             attr.wav['self_wav'] = WavCondition(
@@ -376,6 +435,7 @@ class MusicMotionTransformer(pl.LightningModule):
     def _generate_tokens(
         self,
         attributes: tp.List[ConditioningAttributes],
+        mode: str,
         music_code: tp.Optional[torch.LongTensor] = None,
         motion_code: tp.Optional[torch.LongTensor] = None,
         duration: tp.Optional[float] = None,
@@ -384,10 +444,12 @@ class MusicMotionTransformer(pl.LightningModule):
     ) -> tp.Tuple[torch.LongTensor, torch.LongTensor]:
         duration = self.duration if duration is None else duration
         total_gen_len = int(duration * self.feature_frame_rate)
+        assert mode in ['music_motion', 'music2motion', 'motion2music']
 
         # generate by sampling from LM
         gen_tokens = self.model.generate(
             attributes,
+            mode,
             music_code=music_code,
             motion_code=motion_code,
             max_gen_len=total_gen_len,

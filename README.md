@@ -6,3 +6,6 @@ In dataloader, 1/3 prob to load full music and motion description,
 and 1/3 ...
 Also, I modify the classifier free guidance to drop out the descriptions with  (mu start) (mu end) (mo start) (mo end)
 instead of None.
+
+!! Then maybe when generating caption, we can also do this. So that we can generate 
+music and motion caption separately.

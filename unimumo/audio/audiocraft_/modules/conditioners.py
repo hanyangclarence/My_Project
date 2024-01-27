@@ -405,7 +405,7 @@ class T5Conditioner(TextConditioner):
             warnings.simplefilter("ignore")
             try:
                 print(f'Load t5 model name: {name}')
-                name = '/gpfs/u/home/LMCG/LMCGnngn/scratch/yanghan/music_dance/weight/models--t5-base-musicgen/snapshots/fe6d9bf207cd3337512ca838a8b453f87a9178ef'
+                # name = '/gpfs/u/home/LMCG/LMCGnngn/scratch/yanghan/music_dance/weight/models--t5-base-musicgen/snapshots/fe6d9bf207cd3337512ca838a8b453f87a9178ef'
 
                 self.t5_tokenizer = T5Tokenizer.from_pretrained(name)
 
@@ -484,7 +484,7 @@ def dropout_condition(sample: ConditioningAttributes, condition_type: str, condi
         embed = sample.joint_embed[condition]
         sample.joint_embed[condition] = nullify_joint_embed(embed)
     else:
-        sample.text[condition] = None
+        sample.text[condition] = '<music_prompt_start> <music_prompt_end> <motion_prompt_start> <motion_prompt_end>'
 
     return sample
 

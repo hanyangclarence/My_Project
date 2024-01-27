@@ -60,7 +60,7 @@ class MusicMotionTextDataset(Dataset):
         # merge two descriptions
         for k, v in llama_music_caption.items():
             if k in self.music_caption.keys():
-                if self.train_caption and 'male vocalist' in v:
+                if 'male vocalist' in v:
                     continue
                 self.music_caption[k].append(v)
         # load humanml3d text descriptions
