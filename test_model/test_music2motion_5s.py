@@ -7,6 +7,7 @@ import librosa
 import subprocess
 from pytorch_lightning import seed_everything
 import numpy as np
+import json
 
 import sys
 from pathlib import Path
@@ -117,6 +118,7 @@ if __name__ == "__main__":
 
     # load random motion descriptions
     aist_genres = ['break', 'pop', 'lock', 'middle hip-hop', 'house', 'waack', 'krump', 'street jazz', 'ballet jazz']
+    music_captions = json.load(open('data/music/music4all_captions_mullama.json', 'r'))
 
     # load model
     model = UniMuMo.from_checkpoint(args.ckpt)
@@ -140,7 +142,7 @@ if __name__ == "__main__":
         waveform = waveform[start_idx:start_idx + target_length]
         waveform = waveform.reshape((num_segment, 1, -1))
 
-        music_description = 'This is a pop dance music, with fast tempo and strong intensity.'
+        music_description = music_captions[music_id_list[count]]
         # generate some random motion captions
         genre = random.choice(aist_genres)
         motion_description = f'The style of the dance is {genre}.'
