@@ -9,3 +9,7 @@ instead of None.
 
 !! Then maybe when generating caption, we can also do this. So that we can generate 
 music and motion caption separately.
+
+## Attempt 2.2: Maybe add another task embedding for different generation task
+Since music can sometime attend to motion (previous or all) and sometimes not, it may confuse it.
+So just add another embedding to signify which task it is in. 

@@ -325,14 +325,16 @@ class LMModel(StreamingModule):
         mask = torch.zeros((section_1 + section_2, section_1 + section_2), dtype=torch.bool, device=device)
 
         mask[:section_1, :section_1] = ~torch.ones((section_1, section_1), dtype=torch.bool, device=device).triu(1)
-        mask[section_1:section_1 + section_2, :section_1] = ~torch.ones((section_2, section_2), dtype=torch.bool, device=device).triu(1)
-        mask[:section_1, section_1:section_1 + section_2] = ~torch.ones((section_2, section_2), dtype=torch.bool, device=device).triu(1)
+        mask[section_1:section_1 + section_2, :section_1] = ~torch.ones((section_2, section_1), dtype=torch.bool, device=device).triu(1)
+        mask[:section_1, section_1:section_1 + section_2] = ~torch.ones((section_1, section_2), dtype=torch.bool, device=device).triu(1)
         mask[section_1:section_1 + section_2, section_1:section_1 + section_2] = ~torch.ones((section_2, section_2), dtype=torch.bool, device=device).triu(1)
 
         if mode == 'music2motion':
             mask[section_1:section_1 + section_2, :section_1] = True
+            mask[:section_1, section_1:section_1 + section_2] = False
         elif mode == 'motion2music':
             mask[:section_1, section_1:section_1 + section_2] = True
+            mask[section_1:section_1 + section_2, :section_1] = False
         else:
             assert mode == 'music_motion'
 
