@@ -43,7 +43,7 @@ if __name__ == "__main__":
         type=str,
         required=False,
         help="The path to music data dir",
-        default="./test_motion_vqvae_samples"
+        default="exp_result/test_motion_vqvae_samples"
     )
 
     parser.add_argument(
