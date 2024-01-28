@@ -7,6 +7,9 @@ and 1/3 ...
 Also, I modify the classifier free guidance to drop out the descriptions with  (mu start) (mu end) (mo start) (mo end)
 instead of None.
 
+    motion:
+    e18 gs4: 'fid_k': 529.6752637892415, 'fid_m': (37.91976025333658-4.90817662574096e-09j), 'div_k': 14.847358729126436, 'div_m': 7.175902336975979 (but this one look really bad)
+
 !! Then maybe when generating caption, we can also do this. So that we can generate 
 music and motion caption separately.
 
