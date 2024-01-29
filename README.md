@@ -12,8 +12,14 @@ The motion codebook is initialized from music codebook. Use the previous motion 
 
 
 ## Attempt 1.2: Train a new vqvae that have trainable codebook.
-    The structure of the trainable codebook is still the same. It is still of shape (4, 2048)
 
+### Attempt 1.2.1
+    The structure of the trainable codebook is still the same. It is still of shape (4, 2048)
+    The test loss is not good: total loss: 0.1118762344121933
+    I guess this is because when training, waveform is provided. But when testing, the input is zero waveform.
+
+### Attempt 1.2.2 Use independent motion vqvae
+    Still use the (4, 2048) size codebook, but it's independent one
 
 
 ## Attempt 1.3: Train a new vqvae of smaller size
