@@ -39,7 +39,7 @@ if __name__ == "__main__":
         type=str,
         required=False,
         help="The path to music data dir",
-        default="data/music/audios"
+        default="/gpfs/u/home/LMCG/LMCGnngn/scratch/yanghan/aist_full/aist_plusplus_final/mp3"
     )
 
     parser.add_argument(
