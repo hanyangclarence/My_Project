@@ -25,15 +25,17 @@ with open('stat/rank_recon_loss.txt', 'w') as f:
     for i, file in enumerate(file_list):
         waveform, sr = librosa.load(os.path.join('data/music/audios', file), sr=32000)
 
-        waveform = torch.tensor(waveform)[None, None, ...]
+        waveform = waveform.reshape(-1, waveform.shape[-1] // 5)
+        waveform = torch.tensor(waveform).unsqueeze(1)
         # waveform = waveform[..., :32000 * 10]
         recon = model.forward(waveform).x
+        print(f'wave: {waveform.shape}, recon: {recon.shape}')
 
         recon_loss = torch.nn.functional.mse_loss(waveform, recon)
 
         results[file] = recon_loss
         print(f'{i+1} {file}: loss: {recon_loss}')
-        soundfile.write(os.path.join('stat/wav', file), waveform.squeeze().detach().cpu(), samplerate=32000)
+        soundfile.write(os.path.join('stat/wav', file), waveform.squeeze().detach().cpu().numpy().reshape(-1), samplerate=32000)
 
         # waveform = waveform.cpu()
         # del waveform
