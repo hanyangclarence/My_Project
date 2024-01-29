@@ -26,7 +26,7 @@ with open('stat/rank_recon_loss.txt', 'w') as f:
         waveform, sr = librosa.load(os.path.join('data/music/audios', file), sr=32000)
 
         waveform = torch.tensor(waveform)[None, None, ...].cuda()
-        waveform = waveform[..., :32000 * 25]
+        waveform = waveform[..., :32000 * 10]
         recon = model.forward(waveform).x
 
         recon_loss = torch.nn.functional.mse_loss(waveform, recon)
