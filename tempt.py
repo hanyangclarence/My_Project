@@ -6,7 +6,9 @@ import torch
 from unimumo.audio.audiocraft_.models.builders import get_compression_model
 import random
 import soundfile
+from pytorch_lightning import seed_everything
 
+seed_everything(42)
 file_list = os.listdir('data/music/audios')
 file_list = random.sample(file_list, 1000)
 path = 'pretrained/music_vqvae.bin'
@@ -24,6 +26,7 @@ with open('stat/rank_recon_loss.txt', 'w') as f:
         waveform, sr = librosa.load(os.path.join('data/music/audios', file), sr=32000)
 
         waveform = torch.tensor(waveform)[None, None, ...].cuda()
+        waveform = waveform[..., :32000 * 25]
         recon = model.forward(waveform).x
 
         recon_loss = torch.nn.functional.mse_loss(waveform, recon)
