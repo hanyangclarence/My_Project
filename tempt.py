@@ -1,19 +1,39 @@
-from unimumo.audio.audiocraft_.models.loaders import load_mm_lm_model
-from unimumo.audio.audiocraft_.modules.conditioners import ConditioningAttributes
-
-model = load_mm_lm_model('facebook/musicgen-small', device='cpu')
-
-descriptions = ['<music_prompt_start> Hi Hi Hi <music_prompt_end> <motion_prompt_start> <motion_prompt_end>',
-                "<music_prompt_start> I love you <music_prompt_end> <motion_prompt_start> <motion_prompt_end>"]
-attributes = [ConditioningAttributes(text={'description': description}) for description in descriptions]
-
-attributes = model.cfg_dropout(attributes)
-attributes = model.att_dropout(attributes)
-
-tokenized = model.condition_provider.tokenize(attributes, device='cpu')
-
-print('here')
+import os
+import librosa
+import matplotlib.pyplot as plt
+from omegaconf import OmegaConf
+import torch
+from unimumo.audio.audiocraft_.models.builders import get_compression_model
 
 
+file_list = os.listdir('../Data_analysis/audios')[:20]
+path = '../My_Tempt_Repo/pretrained/music_vqvae.bin'
+pkg = torch.load(path, map_location='cpu')
+cfg = OmegaConf.create(pkg['xp.cfg'])
+model = get_compression_model(cfg)
+model.load_state_dict(pkg['best_state'])
+model = model.cuda()
 
+with open('rank_recon_loss.txt', 'w') as f:
+    results = {}
+    for i, file in enumerate(file_list):
+        waveform, sr = librosa.load(os.path.join('../Data_analysis/audios', file), sr=32000)
 
+        waveform = torch.tensor(waveform)[None, None, ...].cuda()
+        waveform = waveform[..., :32000 * 6]
+        recon = model.forward(waveform).x
+
+        recon_loss = torch.nn.functional.mse_loss(waveform, recon)
+
+        results[file] = recon_loss
+        print(f'{i+1} {file}: loss: {recon_loss}')
+
+    sorted_result = dict(sorted(results.items(), key=lambda x: x[1]))
+    for k, v in sorted_result.items():
+        f.write(f'{k}\t{v}\n')
+
+    values = sorted_result.values()
+    plt.hist(values, bins=80)
+    plt.savefig('recon_loss_histogram.png')
+
+# -25 < loudness < -7
