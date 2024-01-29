@@ -37,6 +37,7 @@ with open('stat/rank_recon_loss.txt', 'w') as f:
 
         waveform = waveform.cpu()
         del waveform
+        torch.cuda.empty_cache()
 
     sorted_result = dict(sorted(results.items(), key=lambda x: x[1]))
     for k, v in sorted_result.items():
