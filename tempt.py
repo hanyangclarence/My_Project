@@ -32,6 +32,9 @@ with open('stat/rank_recon_loss.txt', 'w') as f:
         print(f'{i+1} {file}: loss: {recon_loss}')
         soundfile.write(os.path.join('stat/wav', file), waveform.squeeze().detach().cpu(), samplerate=32000)
 
+        waveform = waveform.cpu()
+        del waveform
+
     sorted_result = dict(sorted(results.items(), key=lambda x: x[1]))
     for k, v in sorted_result.items():
         f.write(f'{k}\t{v}\n')
