@@ -16,7 +16,7 @@ pkg = torch.load(path, map_location='cpu')
 cfg = OmegaConf.create(pkg['xp.cfg'])
 model = get_compression_model(cfg)
 model.load_state_dict(pkg['best_state'])
-model = model.cuda()
+model = model.cpu()
 os.makedirs('stat', exist_ok=True)
 os.makedirs('stat/wav', exist_ok=True)
 
@@ -24,9 +24,10 @@ with open('stat/rank_recon_loss.txt', 'w') as f:
     results = {}
     for i, file in enumerate(file_list):
         waveform, sr = librosa.load(os.path.join('data/music/audios', file), sr=32000)
+        waveform = waveform[:32000 * 20]
 
         waveform = waveform.reshape(-1, waveform.shape[-1] // 5)
-        waveform = torch.tensor(waveform).unsqueeze(1).cuda()
+        waveform = torch.tensor(waveform).unsqueeze(1)
         # waveform = waveform[..., :32000 * 10]
         recon = model.forward(waveform).x
         print(f'wave: {waveform.shape}, recon: {recon.shape}')
