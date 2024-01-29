@@ -163,6 +163,7 @@ if __name__ == "__main__":
         music_id = music_id_list[count].split('/')[-1].split('.')[0]
         print(music_id)
 
+        assert os.path.exists(save_path)
         music_filename = "%s.mp3" % music_id
         music_path = os.path.join(music_save_path, music_filename)
         try:
