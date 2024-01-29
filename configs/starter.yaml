@@ -1,6 +1,6 @@
 model:
   base_learning_rate: 2e-4
-  target: unimumo.models.motion_vqvae.MotionVQVAE
+  target: unimumo.models.motion_vqvae_v2.MotionVQVAE
   params:
     monitor: "val/rec_loss"
     music_key: "waveform"
@@ -20,12 +20,17 @@ model:
       dilation_growth_rate: 2
       depth_per_res_block: 6
       activation: 'relu'
-    music_config:
-      vqvae_ckpt: 'pretrained/music_vqvae.bin'
-      freeze_codebook: False
-    pre_post_quantize_config:
-      pre_quant_conv_mult: 4
-      post_quant_conv_mult: 4
+    quantizer_config:
+      dimension: 128
+      n_q: 4
+      q_dropout: False
+      bins: 2048
+      decay: 0.99
+      kmeans_init: False
+      kmeans_iters: 50
+      threshold_ema_dead_code: 2
+      orthogonal_reg_weight: 0.0
+      orthogonal_reg_active_codes_only: False
 
 
 data:
