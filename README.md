@@ -6,6 +6,11 @@ In dataloader, 1/3 prob to load full music and motion description,
 and 1/3 ...
 Also, I modify the classifier free guidance to drop out the descriptions with  (mu start) (mu end) (mo start) (mo end)
 instead of None.
+    
+    music: musiccap:
+    e18 gs4: 'frechet_distance': 53.7494, 'frechet_audio_distance': 7.7291, 'kl_sigmoid': 7.7697, 'kl_softmax': 2.2808
+    e24 gs4: 'frechet_distance': 52.2185, 'frechet_audio_distance': 7.9602, 'kl_sigmoid': 7.6207, 'kl_softmax': 2.197
+    e30 gs4: 'frechet_distance': 52.0229, 'frechet_audio_distance': 7.2065, 'kl_sigmoid': 7.6156, 'kl_softmax': 2.2522
 
     motion: 5s generation
     e18 gs4: 'fid_k': 529.6752637892415, 'fid_m': (37.91976025333658-4.90817662574096e-09j), 'div_k': 14.847358729126436, 'div_m': 7.175902336975979 (but this one look really bad, a lot of sliding)
