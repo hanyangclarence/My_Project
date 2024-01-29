@@ -13,6 +13,9 @@ instead of None.
     e30 gs4: 'fid_k': 19.648113510289193, 'fid_m': (110.73815681604201-1.636044377507591e-08j), 'div_k': 6.890160970258482, 'div_m': 8.028417848993472  (this look bad again. there is a lot of jittering)
 
     motion: 20s generation on aist
+    e18 gs4: 'fid_k': (1005.4971291774298-9.347177361498772e-06j), 'fid_m': 47.067750589072105, 'div_k': 25.820936558261895, 'div_m': 5.537378755746744
+    e24 gs4: 'fid_k': (17320.742666420585-2.5684689917775003e-05j), 'fid_m': 28.34650509996235, 'div_k': 83.08212972298647, 'div_m': 4.0527641731959125, 'div_k_gt': 9.250034450753242, 'div_m_gt': 7.342270033142343  (so strange..)
+    e30 gs4: 'fid_k': (4386.197219640214-1.4021361884247285e-05j), 'fid_m': (85.65302238392633-8.685384964256249e-09j), 'div_k': 54.52077571734404, 'div_m': 5.429701764614154
 
 !! Then maybe when generating caption, we can also do this. So that we can generate 
 music and motion caption separately.
