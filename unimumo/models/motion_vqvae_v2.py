@@ -73,7 +73,7 @@ class MotionVQVAE(pl.LightningModule):
         motion_recon, commitment_loss = self.forward(batch)
         aeloss, log_dict_ae = self.loss(batch[self.motion_key], motion_recon, commitment_loss, split="train")
 
-        for k, v in self.quantizer.state_dict():
+        for k, v in self.quantizer.state_dict().items():
             log_dict_ae[f'train/{k}'] = v.mean()
 
         self.log("aeloss", aeloss, prog_bar=True, logger=True, on_step=True, on_epoch=False)
