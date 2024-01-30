@@ -37,7 +37,8 @@ def smooth_motion(raw_motion: np.ndarray):
 
     for j in range(raw_motion.shape[1]):
         for coordinate in range(3):  # x, y, z coordinates
-            smoothed_data_sma[:, j, coordinate] = moving_average(raw_motion[:, j, coordinate], window_size)
+            smoothed_row = moving_average(raw_motion[:, j, coordinate], window_size)
+            smoothed_data_sma[:len(smoothed_row), j, coordinate] = smoothed_row
 
     return smoothed_data_sma
 
