@@ -24,7 +24,7 @@ if __name__ == '__main__':
     music_vqvae_path = '/gpfs/u/home/LMCG/LMCGnngn/scratch/yanghan/My_Project/pretrained/music_vqvae.bin'
     save_dir = 'stat'
 
-    os.makedirs(save_dir)
+    os.makedirs(save_dir, exist_ok=True)
 
     pkg = torch.load(music_vqvae_path, map_location='cpu')
     cfg = OmegaConf.create(pkg['xp.cfg'])
