@@ -47,7 +47,10 @@ if __name__ == '__main__':
         results_rms = json.load(open(os.path.join(save_dir, 'rank_rms.json'), 'r'))
     assert len(results_recon.keys()) == len(results_loudness.keys())
     assert len(results_recon.keys()) == len(results_rms.keys())
+
     file_list = [k for k in file_list if k not in results_recon.keys()]
+    num_processed = total_num - len(file_list)
+
     if os.path.exists(os.path.join(save_dir, 'ignore.txt')):
         with open(os.path.join(save_dir, 'ignore.txt'), 'r') as f:
             for line in f.readlines():
@@ -73,7 +76,7 @@ if __name__ == '__main__':
             recon_loss = torch.nn.functional.mse_loss(waveform, recon).item()
             results_recon[file] = recon_loss
 
-            print(f'{i+1} {file}: rms: {rms}, loudness: {loudness}, recon loss: {recon_loss}, ratio: {len(ignore_list)/(total_num)}')
+            print(f'{i+1} {file}: rms: {rms}, loudness: {loudness}, recon loss: {recon_loss}, ratio: {len(ignore_list)/(num_processed + i + 1)}')
 
             if recon_loss < 0.0025:
                 ignore_list.append(file.split('.')[0])
