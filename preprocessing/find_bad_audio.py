@@ -43,12 +43,12 @@ if __name__ == '__main__':
             waveform, sr = librosa.load(os.path.join(audio_dir, file))
 
             rms = librosa.feature.rms(y=waveform).mean()
-            results_rms[file] = rms
+            results_rms[file] = float(rms)
 
             meter = pyln.Meter(sr)
             loudness = meter.integrated_loudness(waveform)
             loudness = max(loudness, -50.)  # remove -inf
-            results_loudness[file] = loudness
+            results_loudness[file] = float(loudness)
 
             waveform, sr = librosa.load(os.path.join(audio_dir, file), sr=32000)
 
