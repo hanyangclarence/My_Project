@@ -173,7 +173,7 @@ if __name__ == "__main__":
 
             batch = {
                 'motion': motion,
-                'music': waveform
+                'waveform': waveform
             }
 
             motion_recon = model.forward(batch)[0]
