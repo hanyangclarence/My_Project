@@ -192,7 +192,7 @@ if __name__ == "__main__":
         if count % 20 == 0:
             joint = motion_vec_to_joint(motion_recon, mean, std)
             gt_joint = motion_vec_to_joint(motion, mean, std)
-            smoothed_joint = smooth_motion(joint[0])
+            smoothed_joint = smooth_motion(gt_joint[0])
 
             os.makedirs(args.save_dir, exist_ok=True)
 
