@@ -37,6 +37,21 @@ if __name__ == '__main__':
     results_rms = {}
     results_loudness = {}
     results_recon = {}
+    # load existing results:
+    if os.path.exists(os.path.join(save_dir, 'rank_recon_loss.json')):
+        results_recon = json.load(open(os.path.join(save_dir, 'rank_recon_loss.json'), 'r'))
+    if os.path.exists(os.path.join(save_dir, 'rank_loudness.json')):
+        results_loudness = json.load(open(os.path.join(save_dir, 'rank_loudness.json'), 'r'))
+    if os.path.exists(os.path.join(save_dir, 'rank_rms.json')):
+        results_rms = json.load(open(os.path.join(save_dir, 'rank_rms.json'), 'r'))
+    assert len(results_recon.keys()) == len(results_loudness.keys())
+    assert len(results_recon.keys()) == len(results_rms.keys())
+    file_list = [k for k in file_list if k not in results_recon.keys()]
+    if os.path.exists(os.path.join(save_dir, 'ignore.txt')):
+        with open(os.path.join(save_dir, 'ignore.txt'), 'r') as f:
+            for line in f.readlines():
+                ignore_list.append(line.strip())
+
     with torch.no_grad():
         for i in tqdm(range(len(file_list))):
             file = file_list[i]
