@@ -6,7 +6,7 @@ import torch
 from unimumo.audio.audiocraft_.models.builders import get_compression_model
 
 
-file_list = os.listdir('../Data_analysis/audios')[:20]
+file_list = os.listdir('../Data_analysis/audios')
 path = '../My_Tempt_Repo/pretrained/music_vqvae.bin'
 pkg = torch.load(path, map_location='cpu')
 cfg = OmegaConf.create(pkg['xp.cfg'])
@@ -15,25 +15,26 @@ model.load_state_dict(pkg['best_state'])
 model = model.cuda()
 
 with open('rank_recon_loss.txt', 'w') as f:
-    results = {}
-    for i, file in enumerate(file_list):
-        waveform, sr = librosa.load(os.path.join('../Data_analysis/audios', file), sr=32000)
+    with torch.no_grad():
+        results = {}
+        for i, file in enumerate(file_list):
+            waveform, sr = librosa.load(os.path.join('../Data_analysis/audios', file), sr=32000)
 
-        waveform = torch.tensor(waveform)[None, None, ...].cuda()
-        waveform = waveform[..., :32000 * 6]
-        recon = model.forward(waveform).x
+            waveform = torch.tensor(waveform)[None, None, ...].cuda()
+            # waveform = waveform[..., :32000 * 6]
+            recon = model.forward(waveform).x
 
-        recon_loss = torch.nn.functional.mse_loss(waveform, recon)
+            recon_loss = torch.nn.functional.mse_loss(waveform, recon).item()
 
-        results[file] = recon_loss
-        print(f'{i+1} {file}: loss: {recon_loss}')
+            results[file] = recon_loss
+            print(f'{i+1} {file}: loss: {recon_loss}')
 
-    sorted_result = dict(sorted(results.items(), key=lambda x: x[1]))
-    for k, v in sorted_result.items():
-        f.write(f'{k}\t{v}\n')
+        sorted_result = dict(sorted(results.items(), key=lambda x: x[1]))
+        for k, v in sorted_result.items():
+            f.write(f'{k}\t{v}\n')
 
-    values = sorted_result.values()
-    plt.hist(values, bins=80)
-    plt.savefig('recon_loss_histogram.png')
+        values = sorted_result.values()
+        plt.hist(values, bins=80)
+        plt.savefig('recon_loss_histogram.png')
 
-# -25 < loudness < -7
+# 0.0025 < loss   (to be further decided)
