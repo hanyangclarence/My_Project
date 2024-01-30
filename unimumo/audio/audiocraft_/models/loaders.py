@@ -76,7 +76,10 @@ def _delete_param(cfg: DictConfig, full_name: str):
     OmegaConf.set_struct(cfg, True)
 
 
-def load_mm_lm_model(file_or_url_or_id: tp.Union[Path, str], device='cpu', cache_dir: tp.Optional[str] = None, use_autocast: bool = True):
+def load_mm_lm_model(
+    file_or_url_or_id: tp.Union[Path, str], device='cpu', cache_dir: tp.Optional[str] = None,
+    use_autocast: bool = True, debug: bool = False
+):
     pkg = load_lm_model_ckpt(file_or_url_or_id, cache_dir=cache_dir)
     cfg = OmegaConf.create(pkg['xp.cfg'])
     cfg.device = str(device)
@@ -87,6 +90,10 @@ def load_mm_lm_model(file_or_url_or_id: tp.Union[Path, str], device='cpu', cache
     _delete_param(cfg, 'conditioners.self_wav.chroma_stem.cache_path')
     _delete_param(cfg, 'conditioners.args.merge_text_conditions_p')
     _delete_param(cfg, 'conditioners.args.drop_desc_p')
+
+    # debug model has only 1 layers of transformer, but all other settings are the same
+    if debug:
+        cfg.transformer_lm.num_layers = 1
 
     # set to use our own attention mask instead of the default causal attention mask
     cfg.transformer_lm.causal = False
@@ -103,6 +110,11 @@ def load_mm_lm_model(file_or_url_or_id: tp.Union[Path, str], device='cpu', cache
         if k.startswith('motion_emb.'):
             music_emb_key = k.replace('motion_', '')
             new_dict[k] = pretrained_dict[music_emb_key].clone()
+    # initialize motion mlp with the same weight as original mlp
+    for k in my_model_dict.keys():
+        if 'linear1_motion' in k or 'linear2_motion' in k or 'norm1_motion' in k or 'norm2_motion' in k:
+            original_key_name = k.replace('_motion', '')
+            new_dict[k] = pretrained_dict[original_key_name].clone()
 
     my_model_dict.update(new_dict)
 

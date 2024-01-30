@@ -99,7 +99,7 @@ class MusicMotionTransformer(pl.LightningModule):
     def get_pretrained_lm(
         self,
         name: str = 'facebook/musicgen-melody',
-        device=None, use_autocast=False
+        device=None, use_autocast=False, debug=False
     ) -> LMModel:
         if device is None:
             if torch.cuda.device_count():
@@ -108,18 +108,13 @@ class MusicMotionTransformer(pl.LightningModule):
                 device = 'cpu'
         print(f'Load lm and conditioner to {device}')
 
-        if name == 'debug':
-            # used only for unit tests
-            lm = get_debug_lm_model(device)
-            return lm
-
         if name in _HF_MODEL_CHECKPOINTS_MAP:
             warnings.warn(
                 "MusicGen pretrained model relying on deprecated checkpoint mapping. " +
                 f"Please use full pre-trained id instead: facebook/musicgen-{name}")
             name = _HF_MODEL_CHECKPOINTS_MAP[name]
 
-        lm = load_mm_lm_model(name, device=device, use_autocast=use_autocast)
+        lm = load_mm_lm_model(name, device=device, use_autocast=use_autocast, debug=debug)
         if 'self_wav' in lm.condition_provider.conditioners:
             lm.condition_provider.conditioners['self_wav'].match_len_on_eval = True
 
