@@ -1,3 +1,17 @@
+!!! Ideas!
+
+1, According to BEiT-3, we can adopt Mixture of Expert. Add another feed-forward layer for motion tokens.
+The parallel generation is still this.
+
+2, According to BLIP, we can train another fully self-attention layer in music-motion transformer decoder
+during training captioning. Just replace the previous causal attention layer.
+
+3, According to VLMo, we can train the model in two stage: (1) Motion only training. Train motion only with
+predict-next-token, and freeze most of the model, except for motion codebook, motion feed-forward, motion classification
+head, ... (2) Music and motion joint training with all the module trainable.
+
+
+
 # Attempt 1: Use separate music and motion code.
 
 ## Attempt 1.1: Directly use two codebook in music motion lm. 
@@ -19,11 +33,16 @@ The motion codebook is initialized from music codebook. Use the previous motion 
     I guess this is because when training, waveform is provided. But when testing, the input is zero waveform.
 
 ### Attempt 1.2.2 Use independent motion vqvae
-    Still use the (4, 2048) size codebook, but it's independent one
+    Still use the (4, 2048) size codebook, but it's independent one. Code in unimumo/models/motion_vqvae_v2.py
     Total loss: total loss: 0.08064708113670349
+    Weight stored as pretrained/motion_vqvae_122.ckpt
 
 Then we use its code to train the model in attempt 1.1
 
 
 ## Attempt 1.3: Train a new vqvae of smaller size
+
+
+## Attempt 1.4: Use separate feed forward, like BEiT 3: 
+The idea of Mixture of Expert!
 

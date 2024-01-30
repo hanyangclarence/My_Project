@@ -25,7 +25,8 @@ from unimumo.motion import motion_process
 from unimumo.util import load_model_from_config
 
 
-# randomly pair each music with several aligned motion
+# This one modified from get_aligned_motion_code.py by encoding motion only, and not including
+# a zero waveform. This is used to extract code using the independent motion vqvae.
 
 
 def main(args):
