@@ -34,6 +34,7 @@ if __name__ == '__main__':
 
     ignore_list = []
     file_list = os.listdir(audio_dir)
+    file_list = [s for s in file_list if s.endswith('.wav') or s.endswith('.mp3')]
     total_num = len(file_list)
     results_rms = {}
     results_loudness = {}
