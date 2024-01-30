@@ -33,7 +33,7 @@ if __name__ == '__main__':
     model = model.cuda()
 
     ignore_list = []
-    file_list = os.listdir(audio_dir)[:1000]
+    file_list = os.listdir(audio_dir)
     results_rms = {}
     results_loudness = {}
     results_recon = {}
