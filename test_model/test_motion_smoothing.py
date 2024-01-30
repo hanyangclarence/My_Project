@@ -32,7 +32,7 @@ def moving_average(raw_motion: np.ndarray, window_size: int):
 
 def smooth_motion(raw_motion: np.ndarray):
     assert raw_motion.ndim == 3 and raw_motion.shape[-1] == 3 and raw_motion.shape[-2] == 22
-    window_size = 3
+    window_size = 5
     smoothed_data_sma = np.copy(raw_motion)
 
     for j in range(raw_motion.shape[1]):
@@ -41,6 +41,7 @@ def smooth_motion(raw_motion: np.ndarray):
             smoothed_data_sma[:len(smoothed_row), j, coordinate] = smoothed_row
 
     return smoothed_data_sma
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
