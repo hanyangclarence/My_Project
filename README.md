@@ -20,6 +20,9 @@ The motion codebook is initialized from music codebook. Use the previous motion 
 
 ### Attempt 1.2.2 Use independent motion vqvae
     Still use the (4, 2048) size codebook, but it's independent one
+    Total loss: total loss: 0.08064708113670349
+
+Then we use its code to train the model in attempt 1.1
 
 
 ## Attempt 1.3: Train a new vqvae of smaller size

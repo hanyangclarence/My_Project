@@ -252,9 +252,7 @@ def main(args):
 
             motion = motion[None, ...]
 
-            zero_waveform = torch.zeros_like(waveform)
-
-            music_emb, motion_emb = model.encode(zero_waveform.to(device), motion.to(device))
+            motion_emb = model.encode(motion.to(device))
             motion_code = model.quantizer.encode(motion_emb)
             motion_token = motion_code.squeeze()
 
