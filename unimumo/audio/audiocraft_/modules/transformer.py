@@ -704,7 +704,6 @@ class StreamingTransformer(StreamingModule):
 
     def _apply_layer(self, layer, *args, **kwargs):
         method = self.checkpointing
-        print(f'_apply_layer: mothod={method}')
         if method == 'none':
             return layer(*args, **kwargs)
         elif method == 'torch':
