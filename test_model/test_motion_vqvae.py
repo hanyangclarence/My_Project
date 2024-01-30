@@ -159,12 +159,12 @@ if __name__ == "__main__":
             motion = motion.to(device)
             waveform = waveform.to(device)
 
-            music_emb, motion_emb = model.encode(x_music=waveform, x_motion=motion)
+            batch = {
+                'motion': motion,
+                'music': waveform
+            }
 
-            q_res_music = model.quantizer(music_emb, 50)  # 50 is the fixed sample rate
-            q_res_motion = model.quantizer(motion_emb, 50)
-
-            motion_recon = model.decode(q_res_music.x, q_res_motion.x)
+            motion_recon = model.forward(batch)[0]
 
             curr_loss = torch.nn.functional.mse_loss(motion, motion_recon)
             print(f'{count + 1}/{total_num}, current loss: {curr_loss},', end=' ')
