@@ -34,6 +34,7 @@ if __name__ == '__main__':
 
     ignore_list = []
     file_list = os.listdir(audio_dir)
+    total_num = len(file_list)
     results_rms = {}
     results_loudness = {}
     results_recon = {}
@@ -72,7 +73,7 @@ if __name__ == '__main__':
             recon_loss = torch.nn.functional.mse_loss(waveform, recon).item()
             results_recon[file] = recon_loss
 
-            print(f'{i+1} {file}: rms: {rms}, loudness: {loudness}, recon loss: {recon_loss}, ratio: {len(ignore_list)/(i+1)}')
+            print(f'{i+1} {file}: rms: {rms}, loudness: {loudness}, recon loss: {recon_loss}, ratio: {len(ignore_list)/(total_num)}')
 
             if recon_loss < 0.0025:
                 ignore_list.append(file.split('.')[0])
