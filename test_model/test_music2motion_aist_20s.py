@@ -7,7 +7,6 @@ import librosa
 import subprocess
 from pytorch_lightning import seed_everything
 import numpy as np
-import json
 
 import sys
 from pathlib import Path
@@ -32,7 +31,7 @@ if __name__ == "__main__":
         type=str,
         required=False,
         help="The path to save model output",
-        default="exp_result/test_music2motion_5s",
+        default="exp_result/test_music2motion_aist_20s",
     )
 
     parser.add_argument(
@@ -40,7 +39,7 @@ if __name__ == "__main__":
         type=str,
         required=False,
         help="The path to music data dir",
-        default="data/music/audios"
+        default="/gpfs/u/home/LMCG/LMCGnngn/scratch/yanghan/aist_full/aist_plusplus_final/mp3"
     )
 
     parser.add_argument(
@@ -108,17 +107,16 @@ if __name__ == "__main__":
     guidance_scale = args.guidance_scale
     music_dir = args.music_dir
     motion_dir = args.motion_dir
-    duration = 5
-    num_segment = 1
+    duration = 10
+    num_segment = 2
 
     music_id_list = os.listdir(music_dir)
-    music_id_list = music_id_list[:300]
+    music_id_list = music_id_list[:40]
     music_id_list = [s.split('.')[0] for s in music_id_list]
     print('number of testing data:', len(music_id_list))
 
     # load random motion descriptions
     aist_genres = ['break', 'pop', 'lock', 'middle hip-hop', 'house', 'waack', 'krump', 'street jazz', 'ballet jazz']
-    music_captions = json.load(open('data/music/music4all_captions_mullama.json', 'r'))
 
     # load model
     model = UniMuMo.from_checkpoint(args.ckpt)
@@ -142,7 +140,7 @@ if __name__ == "__main__":
         waveform = waveform[start_idx:start_idx + target_length]
         waveform = waveform.reshape((num_segment, 1, -1))
 
-        music_description = music_captions[music_id_list[count]]
+        music_description = 'This is a pop dance music, with fast tempo and strong intensity.'
         # generate some random motion captions
         genre = random.choice(aist_genres)
         motion_description = f'The style of the dance is {genre}.'
@@ -165,6 +163,7 @@ if __name__ == "__main__":
         music_id = music_id_list[count].split('/')[-1].split('.')[0]
         print(music_id)
 
+        assert os.path.exists(save_path)
         music_filename = "%s.mp3" % music_id
         music_path = os.path.join(music_save_path, music_filename)
         try:

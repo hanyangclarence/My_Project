@@ -484,7 +484,7 @@ def dropout_condition(sample: ConditioningAttributes, condition_type: str, condi
         embed = sample.joint_embed[condition]
         sample.joint_embed[condition] = nullify_joint_embed(embed)
     else:
-        sample.text[condition] = None
+        sample.text[condition] = '<music_prompt_start> <music_prompt_end> <motion_prompt_start> <motion_prompt_end>'
 
     return sample
 

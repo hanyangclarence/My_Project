@@ -222,8 +222,9 @@ class LMModel(StreamingModule):
         self,
         music_codes: torch.LongTensor,
         motion_codes: torch.LongTensor,
+        mode: str,
         conditions: tp.List[ConditioningAttributes],
-        condition_tensors: tp.Optional[ConditionTensors] = None
+        condition_tensors: tp.Optional[ConditionTensors] = None,
     ) -> tp.Tuple[LMOutput, LMOutput]:
         # prepare input sequence
         B, K, T_music = music_codes.shape
@@ -246,7 +247,7 @@ class LMModel(StreamingModule):
         sequence_codes = torch.cat((music_sequence_codes, motion_sequence_codes), dim=-1)
 
         # prepare self-attention mask
-        self_attn_map = self.get_self_attn_mask(music_sequence_codes.shape[-1], motion_sequence_codes.shape[-1])
+        self_attn_map = self.get_self_attn_mask(music_sequence_codes.shape[-1], motion_sequence_codes.shape[-1], mode)
 
         # apply model on pattern sequence
         music_logits, motion_logits = self(
@@ -299,7 +300,9 @@ class LMModel(StreamingModule):
         sequence_codes = torch.cat((music_sequence_codes, motion_sequence_codes), dim=-1)
 
         # prepare self-attention mask
-        self_attn_map = self.get_self_attn_mask(music_sequence_codes.shape[-1], motion_sequence_codes.shape[-1])
+        self_attn_map = self.get_self_attn_mask(
+            music_sequence_codes.shape[-1], motion_sequence_codes.shape[-1], mode='music_motion'
+        )
 
         # apply model on pattern sequence
         music_motion_context = self(
@@ -309,14 +312,23 @@ class LMModel(StreamingModule):
 
         return music_motion_context
 
-    def get_self_attn_mask(self, section_1: int, section_2: int) -> torch.Tensor:
+    def get_self_attn_mask(self, section_1: int, section_2: int, mode: str) -> torch.Tensor:
         device = next(iter(self.parameters())).device
         mask = torch.zeros((section_1 + section_2, section_1 + section_2), dtype=torch.bool, device=device)
 
         mask[:section_1, :section_1] = ~torch.ones((section_1, section_1), dtype=torch.bool, device=device).triu(1)
-        mask[section_1:section_1 + section_2, :section_2] = ~torch.ones((section_2, section_2), dtype=torch.bool, device=device).triu(1)
-        mask[:section_2, section_1:section_1 + section_2] = ~torch.ones((section_2, section_2), dtype=torch.bool, device=device).triu(1)
+        mask[section_1:section_1 + section_2, :section_1] = ~torch.ones((section_2, section_1), dtype=torch.bool, device=device).triu(1)
+        mask[:section_1, section_1:section_1 + section_2] = ~torch.ones((section_1, section_2), dtype=torch.bool, device=device).triu(1)
         mask[section_1:section_1 + section_2, section_1:section_1 + section_2] = ~torch.ones((section_2, section_2), dtype=torch.bool, device=device).triu(1)
+
+        if mode == 'music2motion':
+            mask[section_1:section_1 + section_2, :section_1] = True
+            mask[:section_1, section_1:section_1 + section_2] = False
+        elif mode == 'motion2music':
+            mask[:section_1, section_1:section_1 + section_2] = True
+            mask[section_1:section_1 + section_2, :section_1] = False
+        else:
+            assert mode == 'music_motion'
 
         mask = torch.where(mask, 0., float('-inf'))
         return mask
@@ -326,6 +338,7 @@ class LMModel(StreamingModule):
         music_sequence: torch.LongTensor,
         motion_sequence: torch.LongTensor,
         cfg_conditions: CFGConditions,
+        mode: str,
         use_sampling: bool = False,
         temp: float = 1.0,
         top_k: int = 0,
@@ -336,7 +349,7 @@ class LMModel(StreamingModule):
         cfg_coef = self.cfg_coef if cfg_coef is None else cfg_coef
 
         sequence = torch.cat((music_sequence, motion_sequence), dim=-1)
-        src_mask = self.get_self_attn_mask(music_sequence.shape[-1], motion_sequence.shape[-1])
+        src_mask = self.get_self_attn_mask(music_sequence.shape[-1], motion_sequence.shape[-1], mode=mode)
 
         assert isinstance(cfg_conditions, dict)
         condition_tensors = cfg_conditions
@@ -393,6 +406,7 @@ class LMModel(StreamingModule):
     def generate(
         self,
         conditions: tp.List[ConditioningAttributes] = [],
+        mode: str = None,
         music_code: tp.Optional[torch.LongTensor] = None,
         motion_code: tp.Optional[torch.LongTensor] = None,
         num_samples: tp.Optional[int] = None,
@@ -408,6 +422,7 @@ class LMModel(StreamingModule):
         first_param = next(iter(self.parameters()))
         device = first_param.device
 
+        assert mode in ['music_motion', 'music2motion', 'motion2music']
         assert music_code is None or motion_code is None, "cannot provide both music and motion code."
 
         # Checking all input shapes are consistent.
@@ -468,7 +483,7 @@ class LMModel(StreamingModule):
                 assert not (motion_curr_sequence == unknown_token).any()
             # sample next token from the model, next token shape is [B, K, 1]
             music_next_token, motion_next_token = self._sample_next_token(
-                music_curr_sequence, motion_curr_sequence, cfg_conditions, use_sampling,
+                music_curr_sequence, motion_curr_sequence, cfg_conditions, mode, use_sampling,
                 temp, top_k, top_p, cfg_coef=cfg_coef
             )
             # ensure the tokens that should be masked are properly set to special_token_id
