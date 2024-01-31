@@ -473,7 +473,10 @@ if __name__ == "__main__":
 
         trainer_kwargs["callbacks"] = [instantiate_from_config(callbacks_cfg[k]) for k in callbacks_cfg]
 
-        trainer = Trainer(**vars(trainer_opt), **trainer_kwargs)
+        trainer = Trainer(
+            strategy=pl.strategies.DDPStrategy(timeout=datetime.timedelta(seconds=3600))
+            **vars(trainer_opt), **trainer_kwargs
+        )
         trainer.logdir = logdir
 
         # data

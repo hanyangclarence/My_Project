@@ -100,4 +100,4 @@ lightning:
     benchmark: True
     devices: 6
     num_nodes: 8
-    strategy: ddp
+#    strategy: ddp
