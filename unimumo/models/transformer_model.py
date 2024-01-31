@@ -6,16 +6,12 @@ import pytorch_lightning as pl
 import torch.nn.functional as F
 from torch.optim.lr_scheduler import LambdaLR
 import random
+from collections import OrderedDict
 
 from unimumo.util import instantiate_from_config
 from unimumo.audio.audiocraft_.models.mm_lm import LMModel, ConditionTensors
-from unimumo.audio.audiocraft_.models.builders import get_debug_lm_model
 from unimumo.audio.audiocraft_.models.loaders import load_mm_lm_model
 from unimumo.audio.audiocraft_.modules.conditioners import ConditioningAttributes, WavCondition
-
-
-MelodyList = tp.List[tp.Optional[torch.Tensor]]
-MelodyType = tp.Union[torch.Tensor, MelodyList]
 
 
 # backward compatible names mapping
@@ -25,6 +21,17 @@ _HF_MODEL_CHECKPOINTS_MAP = {
     "large": "facebook/musicgen-large",
     "melody": "facebook/musicgen-melody",
 }
+
+# trainable keys in music-to-motion pretraining
+# this includes motion codebook, motion feed-forward and motion classification head
+trainable_keys = [
+    'motion_emb',
+    'motion_linears',
+    'linear1_motion',
+    'linear2_motion',
+    'norm1_motion',
+    'norm2_motion'
+]
 
 
 class MusicMotionTransformer(pl.LightningModule):
@@ -41,6 +48,7 @@ class MusicMotionTransformer(pl.LightningModule):
 
         stage: tp.Optional[str] = None,
         mm_ckpt: tp.Optional[str] = None,
+        is_pretraining: bool = False,
 
         generation_params: tp.Optional[dict] = None,
         scheduler_config: tp.Optional[dict] = None,
@@ -57,7 +65,12 @@ class MusicMotionTransformer(pl.LightningModule):
         self.motion_weight = motion_weight
 
         # load music motion transformer
-        self.model: LMModel = self.get_pretrained_lm(name, use_autocast=False)
+        self.model: LMModel = self.get_pretrained_lm(name, use_autocast=False, debug=True)
+
+        # freeze certain parameters if pretraining
+        self.is_pretraining = is_pretraining
+        if is_pretraining:
+            self.freeze_parameters_for_pretraining()
 
         # load music motion captioner
         self.text_model = instantiate_from_config(text_model_config)
@@ -121,6 +134,33 @@ class MusicMotionTransformer(pl.LightningModule):
 
         return lm
 
+    def freeze_parameters_for_pretraining(self):
+        for name, parameter in self.model.named_parameters():
+            if any([s in name for s in trainable_keys]):
+                parameter.requires_grad = True
+            else:
+                parameter.requires_grad = False
+
+    def print_trainable_parameters(self):
+        trainable_name_list = []
+        for name, parameter in self.named_parameters():
+            if parameter.requires_grad:
+                trainable_name_list.append(name)
+        # remove repetitive names
+        filtered_name = []
+        for name in trainable_name_list:
+            name = name.split('.')
+            name = [s for s in name if not s.isdigit()]
+            name = '.'.join(name)
+            filtered_name.append(name)
+        name_set = list(OrderedDict.fromkeys(filtered_name))
+        name_count = {}
+        for name in name_set:
+            name_count[name] = sum([s == name for s in filtered_name])
+        print('All trainable parameters:')
+        for name, count in name_count.items():
+            print(f'[{name}] x {count}')
+
     def training_step(
         self,
         batch: tp.Dict[str, tp.Union[torch.LongTensor, tp.List[str]]],
@@ -129,8 +169,12 @@ class MusicMotionTransformer(pl.LightningModule):
         music_code, motion_code, text_cond = batch[self.music_key], batch[self.motion_key], batch[self.text_cond_key]
 
         if self.stage == 'train_music_motion':  # train the music motion lm
-            # randomly choose the mode on this training step
-            mode = random.choice(['music_motion', 'music2motion', 'motion2music'])
+            # # randomly choose the mode on this training step
+            # mode = random.choice(['music_motion', 'music2motion', 'motion2music'])
+            if self.is_pretraining:
+                mode = 'music2motion'
+            else:
+                mode = 'music_motion'
             text_condition = self.prepare_text_condition(text_cond, mode)
 
             music_output, motion_output = self.model.compute_predictions(
@@ -216,7 +260,11 @@ class MusicMotionTransformer(pl.LightningModule):
         music_code, motion_code, text_cond = batch[self.music_key], batch[self.motion_key], batch[self.text_cond_key]
 
         if self.stage == 'train_music_motion':
-            mode = random.choice(['music_motion', 'music2motion', 'motion2music'])
+            # mode = random.choice(['music_motion', 'music2motion', 'motion2music'])
+            if self.is_pretraining:
+                mode = 'music2motion'
+            else:
+                mode = 'music_motion'
             text_condition = self.prepare_text_condition(text_cond, mode)
 
             music_output, motion_output = self.model.compute_predictions(
@@ -462,25 +510,16 @@ class MusicMotionTransformer(pl.LightningModule):
         return gen_tokens
 
     def configure_optimizers(self):
-        opt = None
-        if self.stage == 'train_music_motion':
-            opt = torch.optim.AdamW(
-                params=self.model.parameters(),
-                lr=self.optimization_config['learning_rate'],
-                betas=self.optimization_config['betas'],
-                weight_decay=self.optimization_config['weight_decay'],
-                eps=self.optimization_config['eps']
-            )
-        elif self.stage == 'train_caption':
-            opt = torch.optim.AdamW(
-                params=self.text_model.parameters(),
-                lr=self.optimization_config['learning_rate'],
-                betas=self.optimization_config['betas'],
-                weight_decay=self.optimization_config['weight_decay'],
-                eps=self.optimization_config['eps']
-            )
-        else:
-            ValueError()
+        trainable_parameters = [p for p in self.parameters() if p.requires_grad]
+        self.print_trainable_parameters()
+
+        opt = torch.optim.AdamW(
+            params=trainable_parameters,
+            lr=self.optimization_config['learning_rate'],
+            betas=self.optimization_config['betas'],
+            weight_decay=self.optimization_config['weight_decay'],
+            eps=self.optimization_config['eps']
+        )
 
         if self.scheduler_config is None:
             return opt

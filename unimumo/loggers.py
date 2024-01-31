@@ -196,13 +196,25 @@ class MusicMotionLogger(Callback):
                 pl_module.eval()
 
             # on both stages, log music motion generation results
-            if pl_module.stage == 'train_music_motion' or pl_module.stage == 'train_caption':
+            if pl_module.stage == 'train_music_motion':
                 with torch.no_grad():
-                    music_gen, motion_gen, music_ref, motion_ref, text_prompt = pl_module.generate_sample(
-                        batch,
-                        duration=self.duration,
-                        conditional_guidance_scale=self.conditional_guidance_scale
-                    )
+                    if pl_module.is_pretraining:
+                        # test music-to-motion
+                        music_code, text_prompt = batch[pl_module.music_key], batch[pl_module.text_cond_key]
+                        motion_gen = pl_module.generate_single_modality(
+                            music_code=music_code,
+                            text_description=text_prompt,
+                            conditional_guidance_scale=self.conditional_guidance_scale
+                        )
+                        music_gen = music_ref = music_code
+                        motion_ref = batch[pl_module.motion_key]
+                    else:
+                        # test text-to-music motion
+                        music_gen, motion_gen, music_ref, motion_ref, text_prompt = pl_module.generate_sample(
+                            batch,
+                            duration=self.duration,
+                            conditional_guidance_scale=self.conditional_guidance_scale
+                        )
 
                 N = min(music_gen.shape[0], self.max_videos_per_generation)
                 # randomly pick N samples from the generated results
