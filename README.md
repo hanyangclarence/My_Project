@@ -46,3 +46,5 @@ Then we use its code to train the model in attempt 1.1
 ## Attempt 1.4: Use separate feed forward, like BEiT 3: 
 The idea of Mixture of Expert!
 
+### Attempt 1.4.2: Use new music4all_ignore file
+
