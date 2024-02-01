@@ -344,6 +344,9 @@ if __name__ == "__main__":
         # set unlimited training epoch
         trainer_config['max_epochs'] = -1
 
+        if trainer_config.get('strategy') is not None:
+            del trainer_config['strategy']
+
         trainer_opt = argparse.Namespace(**trainer_config)
         lightning_config.trainer = trainer_config
 
@@ -473,7 +476,13 @@ if __name__ == "__main__":
 
         trainer_kwargs["callbacks"] = [instantiate_from_config(callbacks_cfg[k]) for k in callbacks_cfg]
 
-        trainer = Trainer(**vars(trainer_opt), **trainer_kwargs)
+        # !!!!!
+        if trainer_kwargs.get('strategy') is not None:
+            del trainer_kwargs['strategy']
+        trainer = Trainer(
+            strategy=pl.strategies.DDPStrategy(timeout=datetime.timedelta(seconds=4800)),
+            **vars(trainer_opt), **trainer_kwargs
+        )
         trainer.logdir = logdir
 
         # data
