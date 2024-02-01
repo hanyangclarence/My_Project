@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import torch
 
 data_dir = 'data/music/music4all_beat'
-file_list = os.listdir(data_dir)[:1000]
+file_list = os.listdir(data_dir)
 
 with open('rank_beat_std.json', 'w') as f:
     results = {}
@@ -21,7 +21,7 @@ with open('rank_beat_std.json', 'w') as f:
     json.dump(sorted_result, f, indent=4)
 
     values = sorted_result.values()
-    plt.hist(values, bins=80)
+    plt.hist(values, bins=300)
     plt.savefig('beat_std_histogram.png')
 
 # 0.0025 < loss   (to be further decided)
