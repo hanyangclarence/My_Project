@@ -46,5 +46,11 @@ Then we use its code to train the model in attempt 1.1
 ## Attempt 1.4: Use separate feed forward, like BEiT 3: 
 The idea of Mixture of Expert!
 
+    motion: 5s  These all looks not bad
+    e15, gs4: 'fid_k': 28.16595031103958, 'fid_m': 25.128384154562852, 'div_k': 7.916131069933956, 'div_m': 7.241416175136864  (some still have jittering)
+    e18, gs4: 'fid_k': 45.79209097850983, 'fid_m': (41.70675454020242-1.2339236570220533e-08j), 'div_k': 10.092344975242913, 'div_m': 7.847883006686484
+    e24, gs4: 'fid_k': 15.166639026381716, 'fid_m': (21.320750258078064-1.1161775287076629e-08j), 'div_k': 9.847920319428678, 'div_m': 7.43546487721844
+    e30, gs4: 'fid_k': 2634.200991246921, 'fid_m': 11.220858005511474, 'div_k': 17.992683423963545, 'div_m': 7.095945158517746  (can observe obvious overfitting)
+
 ### Attempt 1.4.2: Use new music4all_ignore file
 
