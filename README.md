@@ -54,3 +54,6 @@ The idea of Mixture of Expert!
 
 ### Attempt 1.4.2: Use new music4all_ignore file
 
+    motion 5s
+    e21, gs4: 'fid_k': 63.378289547145755, 'fid_m': (27.93885819957844-2.0869182025679013e-08j), 'div_k': 9.794431733433884, 'div_m': 7.316785662735054
+
