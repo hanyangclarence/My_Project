@@ -12,7 +12,7 @@ with open('rank_beat_std.json', 'w') as f:
         data = torch.load(os.path.join(data_dir, file))
         beat = data['beat']
         interval = beat[1:] - beat[:-1]
-        beat_std = interval.std()
+        beat_std = interval.float().std()
 
         results[file] = beat_std
         print(f'{i+1} {file}: std: {beat_std}')
