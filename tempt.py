@@ -14,7 +14,7 @@ with open('rank_beat_std.json', 'w') as f:
         interval = beat[1:] - beat[:-1]
         beat_std = interval.float().std()
 
-        results[file] = beat_std
+        results[file] = beat_std.item()
         print(f'{i+1} {file}: std: {beat_std}')
 
     sorted_result = dict(sorted(results.items(), key=lambda x: x[1]))
