@@ -3,7 +3,7 @@ import json
 import matplotlib.pyplot as plt
 import torch
 
-data_dir = 'data/music/music4all_beat'
+data_dir = 'music4all/music4all_beat'
 file_list = os.listdir(data_dir)
 
 with open('rank_beat_std.json', 'w') as f:
@@ -12,7 +12,7 @@ with open('rank_beat_std.json', 'w') as f:
         data = torch.load(os.path.join(data_dir, file))
         beat = data['beat']
         interval = beat[1:] - beat[:-1]
-        beat_std = interval.float().std()
+        beat_std = interval.std()
 
         results[file] = beat_std.item()
         print(f'{i+1} {file}: std: {beat_std}')
