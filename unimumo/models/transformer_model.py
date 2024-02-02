@@ -65,7 +65,7 @@ class MusicMotionTransformer(pl.LightningModule):
         self.motion_weight = motion_weight
 
         # load music motion transformer
-        self.model: LMModel = self.get_pretrained_lm(name, use_autocast=False, debug=True)
+        self.model: LMModel = self.get_pretrained_lm(name, use_autocast=False)
 
         # freeze certain parameters if pretraining
         self.is_pretraining = is_pretraining
