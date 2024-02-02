@@ -9,7 +9,7 @@ model:
     motion_weight: 0.1
     length_single_modal: 500
     feature_frame_rate: 50
-
+    is_pretraining: True
     monitor: "val/loss"
 
     generation_params:
@@ -98,4 +98,3 @@ lightning:
     benchmark: True
     devices: 1
     num_nodes: 1
-    strategy: ddp
