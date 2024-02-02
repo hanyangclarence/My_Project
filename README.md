@@ -45,6 +45,10 @@ Then we use its code to train the model in attempt 1.1
 
 ## Attempt 1.4: Use separate feed forward, like BEiT 3: 
 The idea of Mixture of Expert!
+    
+    musiccap
+    e18, gs4: 'frechet_distance': 46.5567, 'frechet_audio_distance': 7.5426, 'kl_softmax': 2.1534
+    e24, gs4: 'frechet_distance': 47.8238, 'frechet_audio_distance': 7.8338, 'kl_softmax': 2.1283
 
     motion: 5s  These all looks not bad
     e15, gs4: 'fid_k': 28.16595031103958, 'fid_m': 25.128384154562852, 'div_k': 7.916131069933956, 'div_m': 7.241416175136864  (some still have jittering)
@@ -56,4 +60,7 @@ The idea of Mixture of Expert!
 
     motion 5s
     e21, gs4: 'fid_k': 63.378289547145755, 'fid_m': (27.93885819957844-2.0869182025679013e-08j), 'div_k': 9.794431733433884, 'div_m': 7.316785662735054
+    e27, gs4: 'fid_k': 27.712417059538723, 'fid_m': (13.57193132866231-2.9372374329782815e-08j), 'div_k': 8.398052284959434, 'div_m': 6.680871987664447
+    e33, gs4: 'fid_k': 21.319195019659333, 'fid_m': 19.0015063008562, 'div_k': 9.97412735908858, 'div_m': 6.847419910808338
+    e39, gs4: 'fid_k': 152.46546993133998, 'fid_m': (11.90965979896363-1.7476277353810287e-08j), 'div_k': 12.743685098356227, 'div_m': 7.044677717685699
 
