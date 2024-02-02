@@ -47,7 +47,7 @@ Then we use its code to train the model in attempt 1.1
 The idea of Mixture of Expert!
     
     musiccap
-    e15, gs4:
+    e15, gs4: 'frechet_distance': 45.1839, 'frechet_audio_distance': 6.5972, 'kl_softmax': 2.1922
     e18, gs4: 'frechet_distance': 46.5567, 'frechet_audio_distance': 7.5426, 'kl_softmax': 2.1534
     e24, gs4: 'frechet_distance': 47.8238, 'frechet_audio_distance': 7.8338, 'kl_softmax': 2.1283
     e30, gs4: 'frechet_distance': 46.51, 'frechet_audio_distance': 7.8986, 'kl_softmax': 2.1483
@@ -59,9 +59,10 @@ The idea of Mixture of Expert!
     e30, gs4: 'fid_k': 2634.200991246921, 'fid_m': 11.220858005511474, 'div_k': 17.992683423963545, 'div_m': 7.095945158517746  (can observe obvious overfitting)
 
 ### Attempt 1.4.2: Use new music4all_ignore file
+Ohh nooooo! All of them are really noisy! The music part!!
 
     musiccap
-    e21, gs4: 'frechet_distance': 51.8921, 'frechet_audio_distance': 9.7393, 'kl_softmax': 2.3049
+    e21, gs4: 'frechet_distance': 51.8921, 'frechet_audio_distance': 9.7393, 'kl_softmax': 2.3049 
     e27, gs4: 'frechet_distance': 49.7816, 'frechet_audio_distance': 6.9168, 'kl_softmax': 2.1997
     e33, gs4: 'frechet_distance': 46.01, 'frechet_audio_distance': 5.8568, 'kl_softmax': 2.1717
     e39, gs4: 'frechet_distance': 50.6006, 'frechet_audio_distance': 6.646, 'kl_softmax': 2.2048
