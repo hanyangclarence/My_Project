@@ -174,7 +174,7 @@ class MusicMotionTransformer(pl.LightningModule):
             if self.is_pretraining:
                 mode = 'music2motion'
             else:
-                mode = 'music_motion'
+                mode = random.choice(['music_motion', 'music2motion', 'motion2music'])
             text_condition = self.prepare_text_condition(text_cond, mode)
 
             music_output, motion_output = self.model.compute_predictions(

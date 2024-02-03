@@ -18,3 +18,11 @@ Stage 1, train only music2motion:
 ## Attempt 3.2: Give full weight to motion loss
 Change motion weight to 1.0, and lr to 1e-5
 
+    motion 5s:
+    e9, gs4: 'fid_k': 619.7093621404829, 'fid_m': 35.55905909780583, 'div_k': 20.729237431796765, 'div_m': 6.619866691496859
+    e15, gs4: 'fid_k': 16.96088608297036, 'fid_m': 54.771122981836854, 'div_k': 7.6212745574804455, 'div_m': 8.22999427852822
+    e18, gs4: 'fid_k': 53.626457909767424, 'fid_m': 84.52090147339291, 'div_k': 11.009721285273532, 'div_m': 7.751532624185152
+    e21, gs4: 'fid_k': 26.913671192995054, 'fid_m': 66.43637617688299, 'div_k': 10.31575540674437, 'div_m': 8.03104855731711
+    e24, gs4: 'fid_k': 106.40655109919402, 'fid_m': (149.00719319868173-7.219853910922441e-09j), 'div_k': 13.924959823925759, 'div_m': 8.524272498316323  (don't know why but this one is that bad, there is a lot of jittering)
+    e27, gs4: 'fid_k': 36.07839712098317, 'fid_m': (59.4669769213578-1.9886433470787522e-08j), 'div_k': 11.67602386889839, 'div_m': 7.451998793266188  (This seems already overfit)
+
