@@ -142,9 +142,11 @@ class MusicMotionTransformer(pl.LightningModule):
                 for name, parameter in self.text_model.named_parameters():
                     parameter.requires_grad = False
             else:
-                # set all parameters in music motion transformer as trainable
+                # set all parameters in music motion transformer as trainable, except for condition provider
                 for name, parameter in self.model.named_parameters():
                     parameter.requires_grad = True
+                for name, parameter in self.model.condition_provider.named_parameters():
+                    parameter.requires_grad = False
                 # freeze all parameters for text generation model
                 for name, parameter in self.text_model.named_parameters():
                     parameter.requires_grad = False
