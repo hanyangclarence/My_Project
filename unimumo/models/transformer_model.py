@@ -75,7 +75,7 @@ class MusicMotionTransformer(pl.LightningModule):
 
         # setup training stage and trainable parameters
         self.is_pretraining = is_pretraining
-        assert stage in ['train_music_motion', 'train_caption']
+        assert stage in ['train_music_motion', 'train_caption'] or stage is None
         self.stage = stage
         if self.stage == 'train_music_motion':
             if self.is_pretraining:
