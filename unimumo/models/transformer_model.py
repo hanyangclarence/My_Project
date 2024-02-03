@@ -1,3 +1,4 @@
+import os
 import typing as tp
 import warnings
 import flashy.distrib
@@ -74,18 +75,17 @@ class MusicMotionTransformer(pl.LightningModule):
 
         # setup training stage and trainable parameters
         self.is_pretraining = is_pretraining
-        assert stage is None or stage in ['train_music_motion', 'train_caption']
+        assert stage in ['train_music_motion', 'train_caption']
         self.stage = stage
         if self.stage == 'train_music_motion':
-            print('In training music motion stage!')
+            if self.is_pretraining:
+                print('Pretrain on motion generation!')
+            else:
+                print('Finetune on music-motion joint generation!')
+                self.init_music_motion_lm_with_pretrained(mm_ckpt)
         if self.stage == 'train_caption':
             print('In training caption stage!')
-            assert mm_ckpt is not None, "The pretrained music motion model is not provided"
-            # load the music motion lm part of the ckpt
-            pretrained_sd = torch.load(mm_ckpt, map_location='cpu')['state_dict']
-            mm_lm_sd = {k: v for k, v in pretrained_sd.items() if k.startswith("model.")}  # find keys with prefix "model."
-            mm_lm_sd = {k[len("model."):]: v for k, v in mm_lm_sd.items()}  # remove the prefix "model."
-            self.model.load_state_dict(mm_lm_sd)
+            self.init_music_motion_lm_with_pretrained(mm_ckpt)
         # freeze corresponding parameters
         self.setup_trainable_parameters()
 
@@ -128,6 +128,14 @@ class MusicMotionTransformer(pl.LightningModule):
             lm.condition_provider.conditioners['self_wav'].match_len_on_eval = True
 
         return lm
+
+    def init_music_motion_lm_with_pretrained(self, ckpt: str):
+        assert os.path.exists(ckpt), f'The provided path {ckpt} does not exist!'
+        # load the music motion lm part of the ckpt
+        pretrained_sd = torch.load(ckpt, map_location='cpu')['state_dict']
+        mm_lm_sd = {k: v for k, v in pretrained_sd.items() if k.startswith("model.")}  # find keys with prefix "model."
+        mm_lm_sd = {k[len("model."):]: v for k, v in mm_lm_sd.items()}  # remove the prefix "model."
+        self.model.load_state_dict(mm_lm_sd)
 
     def setup_trainable_parameters(self):
         if self.stage == 'train_music_motion':
@@ -530,7 +538,6 @@ class MusicMotionTransformer(pl.LightningModule):
         return gen_tokens
 
     def configure_optimizers(self):
-        self.setup_trainable_parameters()
         self.print_trainable_parameters()
         trainable_parameters = [p for p in self.parameters() if p.requires_grad]
 
