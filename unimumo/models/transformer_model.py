@@ -7,11 +7,13 @@ import torch.nn.functional as F
 from torch.optim.lr_scheduler import LambdaLR
 import random
 from collections import OrderedDict
+from pytorch_lightning.utilities.rank_zero import rank_zero_only
 
 from unimumo.util import instantiate_from_config
 from unimumo.audio.audiocraft_.models.mm_lm import LMModel, ConditionTensors
 from unimumo.audio.audiocraft_.models.loaders import load_mm_lm_model
 from unimumo.audio.audiocraft_.modules.conditioners import ConditioningAttributes, WavCondition
+from unimumo.models.text_generation_model import TextGenerator
 
 
 # backward compatible names mapping
@@ -68,22 +70,14 @@ class MusicMotionTransformer(pl.LightningModule):
         self.model: LMModel = self.get_pretrained_lm(name, use_autocast=False)
 
         # load music motion captioner
-        self.text_model = instantiate_from_config(text_model_config)
+        self.text_model: TextGenerator = instantiate_from_config(text_model_config)
 
-        # freeze certain parameters if pretraining
+        # setup training stage and trainable parameters
         self.is_pretraining = is_pretraining
-        if is_pretraining:
-            self.set_trainable_parameters_for_pretraining()
-        else:
-            self.set_trainable_parameters_for_finetune()
-
         assert stage is None or stage in ['train_music_motion', 'train_caption']
         self.stage = stage
         if self.stage == 'train_music_motion':
             print('In training music motion stage!')
-            # freeze text model
-            for p in self.text_model.parameters():
-                p.requires_grad = False
         if self.stage == 'train_caption':
             print('In training caption stage!')
             assert mm_ckpt is not None, "The pretrained music motion model is not provided"
@@ -92,9 +86,8 @@ class MusicMotionTransformer(pl.LightningModule):
             mm_lm_sd = {k: v for k, v in pretrained_sd.items() if k.startswith("model.")}  # find keys with prefix "model."
             mm_lm_sd = {k[len("model."):]: v for k, v in mm_lm_sd.items()}  # remove the prefix "model."
             self.model.load_state_dict(mm_lm_sd)
-            # freeze music motion model
-            for p in self.model.parameters():
-                p.requires_grad = False
+        # freeze corresponding parameters
+        self.setup_trainable_parameters()
 
         self.duration = generation_params.pop('duration')
         self.feature_frame_rate = feature_frame_rate
@@ -136,17 +129,36 @@ class MusicMotionTransformer(pl.LightningModule):
 
         return lm
 
-    def set_trainable_parameters_for_pretraining(self):
-        for name, parameter in self.model.named_parameters():
-            if any([s in name for s in trainable_keys]):
-                parameter.requires_grad = True
+    def setup_trainable_parameters(self):
+        if self.stage == 'train_music_motion':
+            if self.is_pretraining:
+                # allow motion related parameters trainable
+                for name, parameter in self.model.named_parameters():
+                    if any([s in name for s in trainable_keys]):
+                        parameter.requires_grad = True
+                    else:
+                        parameter.requires_grad = False
+                # freeze all parameters for text generation model
+                for name, parameter in self.text_model.named_parameters():
+                    parameter.requires_grad = False
             else:
+                # set all parameters in music motion transformer as trainable
+                for name, parameter in self.model.named_parameters():
+                    parameter.requires_grad = True
+                # freeze all parameters for text generation model
+                for name, parameter in self.text_model.named_parameters():
+                    parameter.requires_grad = False
+        elif self.stage == 'train_caption':
+            # freeze all parameters in music-motion transformer model
+            for name, parameter in self.model.named_parameters():
                 parameter.requires_grad = False
+            # train all parameters in text generation model
+            for name, parameter in self.text_model.named_parameters():
+                parameter.requires_grad = True
+        else:
+            ValueError('Wrong stage settings!!')
 
-    def set_trainable_parameters_for_finetune(self):
-        for name, parameter in self.model.named_parameters():
-            parameter.requires_grad = True
-
+    @rank_zero_only
     def print_trainable_parameters(self):
         trainable_name_list = []
         for name, parameter in self.named_parameters():
@@ -516,8 +528,9 @@ class MusicMotionTransformer(pl.LightningModule):
         return gen_tokens
 
     def configure_optimizers(self):
-        trainable_parameters = [p for p in self.parameters() if p.requires_grad]
+        self.setup_trainable_parameters()
         self.print_trainable_parameters()
+        trainable_parameters = [p for p in self.parameters() if p.requires_grad]
 
         opt = torch.optim.AdamW(
             params=trainable_parameters,
