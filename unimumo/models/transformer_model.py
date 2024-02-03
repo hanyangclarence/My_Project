@@ -67,13 +67,15 @@ class MusicMotionTransformer(pl.LightningModule):
         # load music motion transformer
         self.model: LMModel = self.get_pretrained_lm(name, use_autocast=False)
 
+        # load music motion captioner
+        self.text_model = instantiate_from_config(text_model_config)
+
         # freeze certain parameters if pretraining
         self.is_pretraining = is_pretraining
         if is_pretraining:
-            self.freeze_parameters_for_pretraining()
-
-        # load music motion captioner
-        self.text_model = instantiate_from_config(text_model_config)
+            self.set_trainable_parameters_for_pretraining()
+        else:
+            self.set_trainable_parameters_for_finetune()
 
         assert stage is None or stage in ['train_music_motion', 'train_caption']
         self.stage = stage
@@ -134,12 +136,16 @@ class MusicMotionTransformer(pl.LightningModule):
 
         return lm
 
-    def freeze_parameters_for_pretraining(self):
+    def set_trainable_parameters_for_pretraining(self):
         for name, parameter in self.model.named_parameters():
             if any([s in name for s in trainable_keys]):
                 parameter.requires_grad = True
             else:
                 parameter.requires_grad = False
+
+    def set_trainable_parameters_for_finetune(self):
+        for name, parameter in self.model.named_parameters():
+            parameter.requires_grad = True
 
     def print_trainable_parameters(self):
         trainable_name_list = []

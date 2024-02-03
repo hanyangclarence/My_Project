@@ -26,3 +26,5 @@ Change motion weight to 1.0, and lr to 1e-5
     e24, gs4: 'fid_k': 106.40655109919402, 'fid_m': (149.00719319868173-7.219853910922441e-09j), 'div_k': 13.924959823925759, 'div_m': 8.524272498316323  (don't know why but this one is that bad, there is a lot of jittering)
     e27, gs4: 'fid_k': 36.07839712098317, 'fid_m': (59.4669769213578-1.9886433470787522e-08j), 'div_k': 11.67602386889839, 'div_m': 7.451998793266188  (This seems already overfit)
 
+Then, we start with epoch 21 for stage 2
+
