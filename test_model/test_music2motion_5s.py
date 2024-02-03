@@ -32,7 +32,7 @@ if __name__ == "__main__":
         type=str,
         required=False,
         help="The path to save model output",
-        default="exp_result/test_music2motion_5s",
+        default="./test_music2motion_aist",
     )
 
     parser.add_argument(
@@ -111,14 +111,15 @@ if __name__ == "__main__":
     duration = 5
     num_segment = 1
 
-    music_id_list = os.listdir(music_dir)
-    music_id_list = music_id_list[:300]
-    music_id_list = [s.split('.')[0] for s in music_id_list]
-    print('number of testing data:', len(music_id_list))
-
     # load random motion descriptions
     aist_genres = ['break', 'pop', 'lock', 'middle hip-hop', 'house', 'waack', 'krump', 'street jazz', 'ballet jazz']
     music_captions = json.load(open('data/music/music4all_captions_mullama.json', 'r'))
+
+    music_id_list = os.listdir(music_dir)
+    music_id_list = [s.split('.')[0] for s in music_id_list]
+    music_id_list = [s for s in music_id_list if s in music_captions.keys()]
+    music_id_list = music_id_list[:300]
+    print('number of testing data:', len(music_id_list))
 
     # load model
     model = UniMuMo.from_checkpoint(args.ckpt)
