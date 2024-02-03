@@ -158,6 +158,10 @@ class MusicMotionTransformer(pl.LightningModule):
         else:
             ValueError('Wrong stage settings!!')
 
+        print(f'!!!!!!!!!!!!!!!!!!!!!!! {self.stage}, {self.is_pretraining}')
+        for name, parameter in self.named_parameters():
+            print(f'{name}: {parameter.requires_grad}')
+
     @rank_zero_only
     def print_trainable_parameters(self):
         trainable_name_list = []
