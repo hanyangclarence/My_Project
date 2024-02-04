@@ -28,3 +28,17 @@ Change motion weight to 1.0, and lr to 1e-5
 
 Then, we start with epoch 21 for stage 2
 
+    musiccap:
+    e3, gs4:
+    e9, gs4:
+    e15, gs4:
+
+    motion 5s:
+    e3, gs4: 'fid_k': 70.70517068905119, 'fid_m': (153.66033973700593-4.612126388054071e-09j), 'div_k': 12.522745895165132, 'div_m': 9.603234493530447
+    e6, gs4: 'fid_k': 11.156277326846379, 'fid_m': 17.826827186118685, 'div_k': 7.3277379339700826, 'div_m': 5.853206861126782
+    e9, gs4: 'fid_k': 15.95070830150516, 'fid_m': (82.10346131551319-1.7139885308149898e-08j), 'div_k': 9.671764290061683, 'div_m': 9.264130287486706
+    e12, gs4: 'fid_k': 12.649011079664149, 'fid_m': (89.09835066359285-1.2198238397178547e-08j), 'div_k': 9.173138292319532, 'div_m': 10.116231299671973
+    e15, gs4: 'fid_k': 19.910169531154366, 'fid_m': (50.619042407358634-1.4068795960988061e-08j), 'div_k': 10.58246388030823, 'div_m': 8.933915988620175  (don't know why but this one really looks the best, but also it has severe overfit)
+
+
+### Attempt 3.2.2: Start from epoch 18 in previous training
