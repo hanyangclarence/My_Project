@@ -253,7 +253,7 @@ class MusicMotionTextDataset(Dataset):
             music_text_prompt = ', '.join(text_prompt) + '.'
 
         # construct motion text prompt
-        motion_description = None
+        motion_description = ''
         if motion_name in self.dancedb:
             feeling = motion_name.split('_')[1]  # the feeling of the dance
             desc_choices = [f'This is a {feeling} dance.', f'The dance is {feeling}.']

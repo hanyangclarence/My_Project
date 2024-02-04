@@ -342,10 +342,14 @@ class StreamingMultiheadAttention(StreamingModule):
     def forward(self, query: torch.Tensor, key: torch.Tensor, value: torch.Tensor,
                 key_padding_mask=None, need_weights=False, attn_mask=None,
                 average_attn_weights=True, is_causal=False):
-        if attn_mask is not None:
-            assert not self.causal, "crafted attention mask conflicts with default causal attention mask."
-        assert not is_causal, ("New param added in torch 2.0.1 not supported, "
-                               "use the causal args in the constructor.")
+        # if attn_mask is not None:
+        #     assert not self.causal, "crafted attention mask conflicts with default causal attention mask."
+        # assert not is_causal, ("New param added in torch 2.0.1 not supported, "
+        #                        "use the causal args in the constructor.")
+        if attn_mask is None:
+            assert self.cross_attention
+        else:
+            assert not self.cross_attention
 
         time_dim = _get_attention_time_dimension(self.memory_efficient)
         if time_dim == 2:
@@ -429,11 +433,12 @@ class StreamingMultiheadAttention(StreamingModule):
                 p = self.dropout if self.training else 0
                 if _efficient_attention_backend == 'torch':
                     if type(attn_mask) == ops.LowerTriangularMask:
+                        assert False
                         x = scaled_dot_product_attention(
                             q, k, v, is_causal=attn_mask is not None, dropout_p=p)
                     else:
                         x = scaled_dot_product_attention(
-                            q, k, v, attn_mask=attn_mask, is_causal=attn_mask is None, dropout_p=p)
+                            q, k, v, attn_mask=attn_mask, dropout_p=p)
                 else:
                     x = ops.memory_efficient_attention(q, k, v, attn_mask, p=p)
             else:
@@ -706,30 +711,30 @@ class StreamingTransformer(StreamingModule):
         method = self.checkpointing
         if method == 'none':
             return layer(*args, **kwargs)
-        elif method == 'torch':
-            return torch_checkpoint(layer, *args, use_reentrant=False, **kwargs)
-        elif method.startswith('xformers'):
-            from xformers.checkpoint_fairinternal import checkpoint, _get_default_policy
-            if method == 'xformers_default':
-                # those operations will be saved, and not recomputed.
-                # According to Francisco we can get smarter policies but this is a good start.
-                allow_list = [
-                    "xformers.efficient_attention_forward_cutlass.default",
-                    "xformers_flash.flash_fwd.default",
-                    "aten.addmm.default",
-                    "aten.mm.default",
-                ]
-            elif method == 'xformers_mm':
-                # those operations will be saved, and not recomputed.
-                # According to Francisco we can get smarter policies but this is a good start.
-                allow_list = [
-                    "aten.addmm.default",
-                    "aten.mm.default",
-                ]
-            else:
-                raise ValueError(f"xformers checkpointing xformers policy {method} is not known.")
-            policy_fn = _get_default_policy(allow_list)
-            return checkpoint(layer, *args, policy_fn=policy_fn, **kwargs)
+        # elif method == 'torch':
+        #     return torch_checkpoint(layer, *args, use_reentrant=False, **kwargs)
+        # elif method.startswith('xformers'):
+        #     from xformers.checkpoint_fairinternal import checkpoint, _get_default_policy
+        #     if method == 'xformers_default':
+        #         # those operations will be saved, and not recomputed.
+        #         # According to Francisco we can get smarter policies but this is a good start.
+        #         allow_list = [
+        #             "xformers.efficient_attention_forward_cutlass.default",
+        #             "xformers_flash.flash_fwd.default",
+        #             "aten.addmm.default",
+        #             "aten.mm.default",
+        #         ]
+        #     elif method == 'xformers_mm':
+        #         # those operations will be saved, and not recomputed.
+        #         # According to Francisco we can get smarter policies but this is a good start.
+        #         allow_list = [
+        #             "aten.addmm.default",
+        #             "aten.mm.default",
+        #         ]
+        #     else:
+        #         raise ValueError(f"xformers checkpointing xformers policy {method} is not known.")
+        #     policy_fn = _get_default_policy(allow_list)
+        #     return checkpoint(layer, *args, policy_fn=policy_fn, **kwargs)
         else:
             raise ValueError(f"Checkpointing method {method} is unknown.")
 
