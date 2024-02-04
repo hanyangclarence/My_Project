@@ -29,9 +29,9 @@ Change motion weight to 1.0, and lr to 1e-5
 Then, we start with epoch 21 for stage 2
 
     musiccap:
-    e3, gs4:
-    e9, gs4:
-    e15, gs4:
+    e3, gs4: 'frechet_distance': 47.4936, 'frechet_audio_distance': 6.8062, 'kl_sigmoid': 7.9617, 'kl_softmax': 2.2738
+    e9, gs4: 'frechet_distance': 54.4776, 'frechet_audio_distance': 10.7176, 'kl_sigmoid': 8.0889, 'kl_softmax': 2.2975
+    e15, gs4: 'frechet_distance': 50.9853, 'frechet_audio_distance': 7.7529, 'kl_sigmoid': 8.2627, 'kl_softmax': 2.2335
 
     motion 5s:
     e3, gs4: 'fid_k': 70.70517068905119, 'fid_m': (153.66033973700593-4.612126388054071e-09j), 'div_k': 12.522745895165132, 'div_m': 9.603234493530447

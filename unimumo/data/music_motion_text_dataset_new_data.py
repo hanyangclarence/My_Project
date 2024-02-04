@@ -137,6 +137,7 @@ class MusicMotionTextDataset(Dataset):
 
         # music text prompt construction
         # use constructed text prompt
+        print(self.text_df)
         music_id = music_id.split('_')[0]
         genre = self.text_df.loc[music_id, 'genre']
 
