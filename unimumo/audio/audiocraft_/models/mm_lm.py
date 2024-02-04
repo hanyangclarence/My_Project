@@ -317,13 +317,8 @@ class LMModel(StreamingModule):
         mask = torch.zeros((section_1 + section_2, section_1 + section_2), dtype=torch.bool, device=device)
 
         mask[:section_1, :section_1] = ~torch.ones((section_1, section_1), dtype=torch.bool, device=device).triu(1)
-
-        # 1!!!!! Debug Here!
-        # mask[section_1:section_1 + section_2, :section_1] = ~torch.ones((section_2, section_1), dtype=torch.bool, device=device).triu(1)
-        # mask[:section_1, section_1:section_1 + section_2] = ~torch.ones((section_1, section_2), dtype=torch.bool, device=device).triu(1)
-        # Temporarily remove these two lines!
-
-
+        mask[section_1:section_1 + section_2, :section_1] = ~torch.ones((section_2, section_1), dtype=torch.bool, device=device).triu(1)
+        mask[:section_1, section_1:section_1 + section_2] = ~torch.ones((section_1, section_2), dtype=torch.bool, device=device).triu(1)
         mask[section_1:section_1 + section_2, section_1:section_1 + section_2] = ~torch.ones((section_2, section_2), dtype=torch.bool, device=device).triu(1)
 
         # if mode == 'music2motion':

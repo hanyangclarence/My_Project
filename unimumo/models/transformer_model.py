@@ -57,7 +57,8 @@ class MusicMotionTransformer(pl.LightningModule):
         scheduler_config: tp.Optional[dict] = None,
         optimization_config: tp.Optional[dict] = None,
 
-        monitor=None
+        monitor=None,
+        debug: bool = False
     ):
         super().__init__()
 
@@ -68,7 +69,7 @@ class MusicMotionTransformer(pl.LightningModule):
         self.motion_weight = motion_weight
 
         # load music motion transformer
-        self.model: LMModel = self.get_pretrained_lm(name, use_autocast=False)
+        self.model: LMModel = self.get_pretrained_lm(name, use_autocast=False, debug=debug)
 
         # load music motion captioner
         self.text_model: TextGenerator = instantiate_from_config(text_model_config)

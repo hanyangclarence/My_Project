@@ -1,16 +1,17 @@
 model:
-  base_learning_rate: 5e-5
+  base_learning_rate: 1e-5
   target: unimumo.models.transformer_model.MusicMotionTransformer
   params:
     name: 'pretrained/musicgen_small.bin'
     music_key: 'music_code'
     motion_key: 'motion_code'
     text_cond_key: 'text'
-    motion_weight: 0.1
+    motion_weight: 1.0
     length_single_modal: 50
     feature_frame_rate: 50
-
+    is_pretraining: True
     monitor: "val/loss"
+    debug: True
 
     generation_params:
       use_sampling: True
@@ -84,7 +85,7 @@ lightning:
         sr: 32000
         motion_fps: 60
         max_video_logged: 120
-        disabled: False
+        disabled: false
   trainer:
     benchmark: True
     devices: 1
