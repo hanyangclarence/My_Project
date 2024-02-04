@@ -124,7 +124,7 @@ class MusicMotionTextDataset(Dataset):
         music_code = torch.load(pjoin(self.music_code_dir, f'{music_id}.pth'))['codes'][0]  # 4, T
 
         # load motion token
-        selection = [s for s in self.motion_data if s[:len(music_id)] == music_id]  # motion name that starts with music_id
+        selection = [s for s in self.motion_data if s[:len(music_id)+1] == music_id + '_']  # motion name that starts with music_id
         motion_name = random.choice(selection)  # randomly choose a paired motion
         motion_name = motion_name.split('_!motion_code!_')[1]
         motion_code = torch.load(pjoin(self.motion_code_dir, f'{music_id}_!motion_code!_{motion_name}.pth'))  # 4, T
