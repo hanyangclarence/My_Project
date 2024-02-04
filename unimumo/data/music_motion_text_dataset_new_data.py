@@ -47,6 +47,7 @@ class MusicMotionTextDataset(Dataset):
         # load data related to text descriptions
         # load metadata of music4all
         self.text_df = pd.read_csv(pjoin(self.music_meta_dir, 'music_2_new.csv'), index_col=0)
+        df_index = list(self.text_df.index)
 
         # load humanml3d text descriptions
         humanml3d_text_dir = pjoin(self.motion_meta_dir, 'humanml3d_text_description')
@@ -110,6 +111,8 @@ class MusicMotionTextDataset(Dataset):
                 if not os.path.exists(pjoin(self.music_code_dir, line.strip() + '.pth')):
                     continue
                 if line.strip() not in music_with_paired_motion:
+                    continue
+                if int(line.strip().split('_')[0]) not in df_index:
                     continue
                 self.music_data.append(line.strip())
         print(f'Total number of music in {split} set: {len(self.music_data)}')
