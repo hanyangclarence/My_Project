@@ -247,8 +247,8 @@ class MusicMotionTransformer(pl.LightningModule):
             optimizer.zero_grad()
 
             for i in range(self.model.n_q):
-                log_dict[f'music_emb_{i}'] = self.model.emb.state_dict()[f'{i}.weight'].mean().item()
-                log_dict[f'motion_emb_{i}'] = self.model.motion_emb.state_dict()[f'{i}.weight'].mean().item()
+                log_dict[f'train/music_emb_{i}'] = self.model.emb.state_dict()[f'{i}.weight'].mean().item()
+                log_dict[f'train/motion_emb_{i}'] = self.model.motion_emb.state_dict()[f'{i}.weight'].mean().item()
 
             self.log_dict(log_dict, prog_bar=True, logger=True, on_step=True, on_epoch=False)
 
