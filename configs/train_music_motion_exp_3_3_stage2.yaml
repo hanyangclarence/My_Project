@@ -53,7 +53,7 @@ data:
     wrap: True
     num_workers: 4
     train:
-      target: unimumo.data.music_motion_text_dataset.MusicMotionTextDataset
+      target: unimumo.data.music_motion_text_dataset_new_data.MusicMotionTextDataset
       params:
         split: "train"
         music_meta_dir: '/gpfs/u/home/LMCG/LMCGnngn/scratch/yanghan/spotify_music'
@@ -66,7 +66,7 @@ data:
         natural_language_caption_ratio: 0.0
 
     validation:
-      target: unimumo.data.music_motion_text_dataset.MusicMotionTextDataset
+      target: unimumo.data.music_motion_text_dataset_new_data.MusicMotionTextDataset
       params:
         split: "val"
         music_meta_dir: '/gpfs/u/home/LMCG/LMCGnngn/scratch/yanghan/spotify_music'
