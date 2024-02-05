@@ -136,6 +136,7 @@ class MusicMotionTransformer(pl.LightningModule):
         pretrained_sd = torch.load(ckpt, map_location='cpu')['state_dict']
         mm_lm_sd = {k: v for k, v in pretrained_sd.items() if k.startswith("model.")}  # find keys with prefix "model."
         mm_lm_sd = {k[len("model."):]: v for k, v in mm_lm_sd.items()}  # remove the prefix "model."
+        mm_lm_sd = {k: v for k, v in mm_lm_sd.items() if k in self.model.state_dict().keys()}  # load shared weight only
         self.model.load_state_dict(mm_lm_sd)
 
     def setup_trainable_parameters(self):
