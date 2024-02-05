@@ -34,8 +34,23 @@ Change motion weight to 1.0, and lr to 1e-5
 
 Then, we start with epoch 12 for stage 2
 
+    musiccap:
+    e3, gs3:
+    e6, gs3:
+    e9, gs3:
+    e12, gs3:
+    e15, gs3:
+
+
 
 ### Attempt 3.2.2: Start from epoch 18 in previous training
+
+    musiccap:
+    e3, gs3:
+    e6, gs3:
+    e9, gs3:
+    e12, gs3:
+    e15, gs3:
 
 
 
