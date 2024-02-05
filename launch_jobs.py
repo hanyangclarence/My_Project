@@ -20,10 +20,19 @@ if __name__ == "__main__":
         required=True,
     )
 
+    parser.add_argument(
+        "-j",
+        "--job_name",
+        type=str,
+        required=False,
+        default='test'
+    )
+
     args = parser.parse_args()
 
     num_split = args.num_split
     command = args.command
+    job_name = args.job_name
 
     print(f'Running command [{command}] for {num_split} splits')
 
@@ -35,9 +44,9 @@ if __name__ == "__main__":
 
         with open('run_test_jobs.sh', 'w') as f:
             f.write('#!/bin/bash\n')
-            f.write(f'#SBATCH --job-name=test_{job_count}\n' +
-                    f'#SBATCH -o output/test_{job_count}_%j.out\n' +
-                    f'#SBATCH -e output/test_{job_count}_%j.err\n' +
+            f.write(f'#SBATCH --job-name={job_name}_{job_count}\n' +
+                    f'#SBATCH -o output/{job_name}_{job_count}_%j.out\n' +
+                    f'#SBATCH -e output/{job_name}_{job_count}_%j.err\n' +
                     '#SBATCH --mem=100G\n' +
                     '#SBATCH --nodes=1\n' +
                     '#SBATCH --ntasks-per-node=1\n' +
