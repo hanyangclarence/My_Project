@@ -27,14 +27,17 @@ _HF_MODEL_CHECKPOINTS_MAP = {
 
 # trainable keys in music-to-motion pretraining
 # this includes motion codebook, motion feed-forward and motion classification head
-trainable_keys = [
-    'motion_emb',
-    'motion_linears',
-    'linear1_motion',
-    'linear2_motion',
-    'norm1_motion',
-    'norm2_motion'
-]
+# trainable_keys_pretrain = [
+#     'motion_emb',
+#     'motion_linears',
+#     'linear1_motion',
+#     'linear2_motion',
+#     'norm1_motion',
+#     'norm2_motion'
+# ]
+# trainable_keys_finetune = [
+#     'self_attn'
+# ]
 
 
 class MusicMotionTransformer(pl.LightningModule):
@@ -52,6 +55,7 @@ class MusicMotionTransformer(pl.LightningModule):
         stage: tp.Optional[str] = None,
         mm_ckpt: tp.Optional[str] = None,
         is_pretraining: bool = False,
+        trainable_parameters: tp.List[str] = None,
 
         generation_params: tp.Optional[dict] = None,
         scheduler_config: tp.Optional[dict] = None,
@@ -88,7 +92,7 @@ class MusicMotionTransformer(pl.LightningModule):
             print('In training caption stage!')
             self.init_music_motion_lm_with_pretrained(mm_ckpt)
         # freeze corresponding parameters
-        self.setup_trainable_parameters()
+        self.setup_trainable_parameters(trainable_parameters)
 
         self.duration = generation_params.pop('duration')
         self.feature_frame_rate = feature_frame_rate
@@ -138,27 +142,19 @@ class MusicMotionTransformer(pl.LightningModule):
         mm_lm_sd = {k[len("model."):]: v for k, v in mm_lm_sd.items()}  # remove the prefix "model."
         self.model.load_state_dict(mm_lm_sd)
 
-    def setup_trainable_parameters(self):
+    def setup_trainable_parameters(self, trainable_parameter_keys: tp.List[str] = None):
         if self.stage == 'train_music_motion':
-            if self.is_pretraining:
-                # allow motion related parameters trainable
-                for name, parameter in self.model.named_parameters():
-                    if any([s in name for s in trainable_keys]):
-                        parameter.requires_grad = True
-                    else:
-                        parameter.requires_grad = False
-                # freeze all parameters for text generation model
-                for name, parameter in self.text_model.named_parameters():
-                    parameter.requires_grad = False
-            else:
-                # set all parameters in music motion transformer as trainable, except for condition provider
-                for name, parameter in self.model.named_parameters():
+            assert trainable_parameter_keys is not None
+            # allow specified parameters trainable
+            for name, parameter in self.model.named_parameters():
+                if any([s in name for s in trainable_parameter_keys]):
                     parameter.requires_grad = True
-                for name, parameter in self.model.condition_provider.named_parameters():
+                else:
                     parameter.requires_grad = False
-                # freeze all parameters for text generation model
-                for name, parameter in self.text_model.named_parameters():
-                    parameter.requires_grad = False
+            # freeze all parameters for text generation model
+            for name, parameter in self.text_model.named_parameters():
+                parameter.requires_grad = False
+
         elif self.stage == 'train_caption':
             # freeze all parameters in music-motion transformer model
             for name, parameter in self.model.named_parameters():
@@ -166,6 +162,7 @@ class MusicMotionTransformer(pl.LightningModule):
             # train all parameters in text generation model
             for name, parameter in self.text_model.named_parameters():
                 parameter.requires_grad = True
+
         else:
             ValueError('Wrong stage settings!!')
 
