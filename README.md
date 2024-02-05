@@ -7,3 +7,5 @@
 
 ### Attempt 4.1.2: Start with e18
 
+## Attempt 4.2: Train self-attn and cross-attn
+
