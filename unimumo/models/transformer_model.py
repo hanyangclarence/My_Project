@@ -9,6 +9,7 @@ from torch.optim.lr_scheduler import LambdaLR
 import random
 from collections import OrderedDict
 from pytorch_lightning.utilities.rank_zero import rank_zero_only
+import sys
 
 from unimumo.util import instantiate_from_config
 from unimumo.audio.audiocraft_.models.mm_lm import LMModel, ConditionTensors
@@ -136,7 +137,14 @@ class MusicMotionTransformer(pl.LightningModule):
         pretrained_sd = torch.load(ckpt, map_location='cpu')['state_dict']
         mm_lm_sd = {k: v for k, v in pretrained_sd.items() if k.startswith("model.")}  # find keys with prefix "model."
         mm_lm_sd = {k[len("model."):]: v for k, v in mm_lm_sd.items()}  # remove the prefix "model."
+
+        # load weight that is compatible
         mm_lm_sd = {k: v for k, v in mm_lm_sd.items() if k in self.model.state_dict().keys()}  # load shared weight only
+        # if keys are missing, just keep the original weight
+        missing_keys = [k for k in self.model.state_dict().keys() if k not in mm_lm_sd.keys()]
+        print(f'Warning! The following keys are missing in the provided ckpt: {missing_keys}', file=sys.stderr)
+        for k in missing_keys:
+            mm_lm_sd[k] = self.model.state_dict()[k]
         self.model.load_state_dict(mm_lm_sd)
 
     def setup_trainable_parameters(self):
