@@ -46,10 +46,10 @@ Then, we start with epoch 12 for stage 2
 ### Attempt 3.2.2: Start from epoch 18 in previous training
 
     musiccap:
-    e3, gs3:
-    e6, gs3:
-    e9, gs3:
-    e12, gs3:
+    e3, gs3: 'frechet_distance': 47.7047, 'frechet_audio_distance': 7.6948, 'kl_sigmoid': 7.0535, 'kl_softmax': 2.1388
+    e6, gs3: 'frechet_distance': 47.9272, 'frechet_audio_distance': 7.2428, 'kl_sigmoid': 7.3651, 'kl_softmax': 2.1897
+    e9, gs3: 'frechet_distance': 45.8944, 'frechet_audio_distance': 7.8981, 'kl_sigmoid': 7.2816, 'kl_softmax': 2.1132
+    e12, gs3 (4201): 'frechet_distance': 46.1751, 'frechet_audio_distance': 7.9808, 'kl_sigmoid': 7.1604, 'kl_softmax': 2.1214
     e15, gs3:
 
 
