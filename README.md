@@ -55,4 +55,10 @@ Then, we start with epoch 12 for stage 2
 
 
 
-### Attempt 3.3: Start from epoch 18, and then use new dataset
+## Attempt 3.3: Start from epoch 18, and then use new dataset
+
+## Attempt 3.4: Give lower weight to motion loss
+Seems that motion is too separated from music, so that training any fine-tuning cannot train joint generation 
+together.
+
+Change motion weight to 0.5 
