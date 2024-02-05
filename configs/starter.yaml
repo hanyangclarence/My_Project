@@ -10,7 +10,7 @@ model:
     length_single_modal: 500
     feature_frame_rate: 50
     is_pretraining: False
-    trainable_parameters: ['self_attn']
+    trainable_parameters: ['self_attn', 'cross_attention']
 
     monitor: "val/loss"
 
