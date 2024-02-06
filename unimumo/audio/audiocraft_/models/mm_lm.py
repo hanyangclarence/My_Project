@@ -131,7 +131,7 @@ class LMModel(StreamingModule):
         self.motion_linears = nn.ModuleList([nn.Linear(dim, self.card, bias=bias_proj) for _ in range(n_q)])
 
         # trainable attention weight
-        self.attention_weight = nn.Parameter(torch.ones(1) * -50.0, requires_grad=True)
+        self.attention_weight = nn.Parameter(torch.ones(1) * -20.0, requires_grad=True)
 
         self._init_weights(weight_init, depthwise_init, zero_bias_init)
         self._fsdp: tp.Optional[nn.Module]
