@@ -65,6 +65,7 @@ Change motion weight to 0.5
 
 After stage 1:
 
+    e9 and e12 looks not good. Motions are too fast and unatural. But actually e15 looks not bad. e21 is also not bad, but might be overfit
     music2motion 5s:
     e09, gs3: 'fid_k': 2288.562317682805, 'fid_m': 40.457945425164894, 'div_k': 29.67374393470876, 'div_m': 8.693808652321032
     e12, gs3: 'fid_k': 113.6714743678225, 'fid_m': (43.706101933106666-1.3099851403703215e-08j), 'div_k': 12.742204713911782, 'div_m': 8.424984482262312
