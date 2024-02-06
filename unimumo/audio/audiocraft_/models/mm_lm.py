@@ -333,10 +333,11 @@ class LMModel(StreamingModule):
         # else:
         #     assert mode == 'music_motion'
 
+        mask = torch.where(mask, 0., float('-inf'))
+
         # add attention weight here to disallow music to attend to motion initially
         mask[:section_1, section_1:section_1 + section_2] += self.attention_weight
 
-        mask = torch.where(mask, 0., float('-inf'))
         return mask
 
     def _sample_next_token(
