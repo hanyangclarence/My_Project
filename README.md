@@ -12,3 +12,4 @@ We start with e12 from 3.2
 
 
 ## 5.2: Use 100% music weight to finetune
+Also, I removed the motion-to-music attention. Now this should be absolutely independent.
