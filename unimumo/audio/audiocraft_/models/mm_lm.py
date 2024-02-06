@@ -130,6 +130,9 @@ class LMModel(StreamingModule):
         # classification head for motion
         self.motion_linears = nn.ModuleList([nn.Linear(dim, self.card, bias=bias_proj) for _ in range(n_q)])
 
+        # trainable attention weight
+        self.attention_weight = nn.Parameter(torch.ones(1) * -20.0, requires_grad=True)
+
         self._init_weights(weight_init, depthwise_init, zero_bias_init)
         self._fsdp: tp.Optional[nn.Module]
         self.__dict__['_fsdp'] = None
@@ -329,6 +332,9 @@ class LMModel(StreamingModule):
         #     mask[section_1:section_1 + section_2, :section_1] = False
         # else:
         #     assert mode == 'music_motion'
+
+        # add attention weight here to disallow music to attend to motion initially
+        mask[:section_1, section_1:section_1 + section_2] += self.attention_weight
 
         mask = torch.where(mask, 0., float('-inf'))
         return mask

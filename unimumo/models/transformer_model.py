@@ -218,6 +218,8 @@ class MusicMotionTransformer(pl.LightningModule):
             self.log(f"train/{mode}_music_loss", music_loss, prog_bar=True, logger=True, on_step=True, on_epoch=False)
             self.log(f"train/{mode}_motion_loss", motion_loss, prog_bar=True, logger=True, on_step=True, on_epoch=False)
 
+            self.log(f'train/attn_weight', self.model.attention_weight.item(), prog_bar=True, logger=True, on_step=True, on_epoch=False)
+
             log_dict = {}
             # for k in range(len(music_loss_per_codebook)):
             #     log_dict[f'train/music_ce_q{k + 1}'] = music_loss_per_codebook[k]
