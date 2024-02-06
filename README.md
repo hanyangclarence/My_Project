@@ -1,3 +1,11 @@
+# Running:
+3.4; 4.3; 6.1
+
+# Testing:
+5; 
+
+
+
 <div align="center">  
 
 [//]: # (# UniMuMo: Unified Text, Music and Motion Generation)
