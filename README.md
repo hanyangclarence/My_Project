@@ -9,3 +9,6 @@ We start with e12 from 3.2
     e6, gs3: 'frechet_distance': 48.0502, 'frechet_audio_distance': 7.5015, 'kl_sigmoid': 7.2512, 'kl_softmax': 2.1142
     e9, gs3: 'frechet_distance': 47.9048, 'frechet_audio_distance': 7.3032, 'kl_sigmoid': 7.5377, 'kl_softmax': 2.2265
     e12, gs3: 'frechet_distance': 45.5392, 'frechet_audio_distance': 7.7305, 'kl_sigmoid': 7.28, 'kl_softmax': 2.1356
+
+
+## 5.2: Use 100% music weight to finetune
