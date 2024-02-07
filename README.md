@@ -16,4 +16,5 @@ Also, I removed the motion-to-music attention. Now this should be absolutely ind
 
 
 ## 5.3: Try to train on spotify dataset
-first we clean the dataset using preprocessing/clean_spotify.py
+first we clean the dataset using preprocessing/clean_spotify.py.
+Then we start from e12 3.2
