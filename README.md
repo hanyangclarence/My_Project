@@ -14,6 +14,11 @@ We start with e12 from 3.2
 ## 5.2: Use 100% music weight to finetune
 Also, I removed the motion-to-music attention. Now this should be absolutely independent.
 
+    e3, gs4: 'frechet_distance': 46.5273, 'frechet_audio_distance': 6.9686, 'kl_sigmoid': 6.8755, 'kl_softmax': 2.0913
+    e6, gs4: 'frechet_distance': 46.036, 'frechet_audio_distance': 7.3363, 'kl_sigmoid': 7.1793, 'kl_softmax': 2.0906
+    e9, gs4: 'frechet_distance': 46.0216, 'frechet_audio_distance': 7.797, 'kl_sigmoid': 7.0673, 'kl_softmax': 2.0948
+    e12, gs4: 'frechet_distance': 45.3989, 'frechet_audio_distance': 8.6292, 'kl_sigmoid': 7.2042, 'kl_softmax': 2.104
+
 
 ## 5.3: Try to train on spotify dataset
 first we clean the dataset using preprocessing/clean_spotify.py.
