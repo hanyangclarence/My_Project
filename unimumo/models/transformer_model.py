@@ -25,17 +25,6 @@ _HF_MODEL_CHECKPOINTS_MAP = {
     "melody": "facebook/musicgen-melody",
 }
 
-# trainable keys in music-to-motion pretraining
-# this includes motion codebook, motion feed-forward and motion classification head
-trainable_keys = [
-    'motion_emb',
-    'motion_linears',
-    'linear1_motion',
-    'linear2_motion',
-    'norm1_motion',
-    'norm2_motion'
-]
-
 
 class MusicMotionTransformer(pl.LightningModule):
     def __init__(
@@ -51,7 +40,6 @@ class MusicMotionTransformer(pl.LightningModule):
 
         stage: tp.Optional[str] = None,
         mm_ckpt: tp.Optional[str] = None,
-        is_pretraining: bool = False,
 
         generation_params: tp.Optional[dict] = None,
         scheduler_config: tp.Optional[dict] = None,
@@ -74,16 +62,10 @@ class MusicMotionTransformer(pl.LightningModule):
         # load music motion captioner
         self.text_model: TextGenerator = instantiate_from_config(text_model_config)
 
-        # setup training stage and trainable parameters
-        self.is_pretraining = is_pretraining
-        assert stage in ['train_music_motion', 'train_caption'] or stage is None
+        assert stage is None or stage in ['train_music_motion', 'train_caption']
         self.stage = stage
         if self.stage == 'train_music_motion':
-            if self.is_pretraining:
-                print('Pretrain on motion generation!')
-            else:
-                print('Finetune on music-motion joint generation!')
-                self.init_music_motion_lm_with_pretrained(mm_ckpt)
+            print('In training music motion stage!')
         if self.stage == 'train_caption':
             print('In training caption stage!')
             self.init_music_motion_lm_with_pretrained(mm_ckpt)
@@ -140,25 +122,9 @@ class MusicMotionTransformer(pl.LightningModule):
 
     def setup_trainable_parameters(self):
         if self.stage == 'train_music_motion':
-            if self.is_pretraining:
-                # allow motion related parameters trainable
-                for name, parameter in self.model.named_parameters():
-                    if any([s in name for s in trainable_keys]):
-                        parameter.requires_grad = True
-                    else:
-                        parameter.requires_grad = False
-                # freeze all parameters for text generation model
-                for name, parameter in self.text_model.named_parameters():
-                    parameter.requires_grad = False
-            else:
-                # set all parameters in music motion transformer as trainable, except for condition provider
-                for name, parameter in self.model.named_parameters():
-                    parameter.requires_grad = True
-                for name, parameter in self.model.condition_provider.named_parameters():
-                    parameter.requires_grad = False
-                # freeze all parameters for text generation model
-                for name, parameter in self.text_model.named_parameters():
-                    parameter.requires_grad = False
+            # freeze all parameters for text generation model
+            for name, parameter in self.text_model.named_parameters():
+                parameter.requires_grad = False
         elif self.stage == 'train_caption':
             # freeze all parameters in music-motion transformer model
             for name, parameter in self.model.named_parameters():
@@ -199,11 +165,7 @@ class MusicMotionTransformer(pl.LightningModule):
 
         if self.stage == 'train_music_motion':  # train the music motion lm
             # # randomly choose the mode on this training step
-            # mode = random.choice(['music_motion', 'music2motion', 'motion2music'])
-            if self.is_pretraining:
-                mode = 'music2motion'
-            else:
-                mode = random.choice(['music_motion', 'music2motion', 'motion2music'])
+            mode = random.choice(['music_motion', 'music2motion', 'motion2music'])
             text_condition = self.prepare_text_condition(text_cond, mode)
 
             music_output, motion_output = self.model.compute_predictions(
@@ -217,14 +179,13 @@ class MusicMotionTransformer(pl.LightningModule):
             total_loss = music_loss * (1 - self.motion_weight) + motion_loss * self.motion_weight
 
             self.log("train/loss", total_loss, prog_bar=True, logger=True, on_step=True, on_epoch=False)
-            self.log(f"train/{mode}_loss", total_loss, prog_bar=True, logger=True, on_step=True, on_epoch=False)
-            self.log(f"train/{mode}_music_loss", music_loss, prog_bar=True, logger=True, on_step=True, on_epoch=False)
-            self.log(f"train/{mode}_motion_loss", motion_loss, prog_bar=True, logger=True, on_step=True, on_epoch=False)
+            self.log("train/music_loss", music_loss, prog_bar=True, logger=True, on_step=True, on_epoch=False)
+            self.log("train/motion_loss", motion_loss, prog_bar=True, logger=True, on_step=True, on_epoch=False)
 
             log_dict = {}
-            # for k in range(len(music_loss_per_codebook)):
-            #     log_dict[f'train/music_ce_q{k + 1}'] = music_loss_per_codebook[k]
-            #     log_dict[f'train/motion_ce_q{k + 1}'] = motion_loss_per_codebook[k]
+            for k in range(len(music_loss_per_codebook)):
+                log_dict[f'train/music_ce_q{k + 1}'] = music_loss_per_codebook[k]
+                log_dict[f'train/motion_ce_q{k + 1}'] = motion_loss_per_codebook[k]
 
             optimizer = self.optimizers().optimizer
             lr_scheduler = self.lr_schedulers()
@@ -245,10 +206,6 @@ class MusicMotionTransformer(pl.LightningModule):
             if lr_scheduler is not None:
                 lr_scheduler.step()
             optimizer.zero_grad()
-
-            for i in range(self.model.n_q):
-                log_dict[f'train/music_emb_{i}'] = self.model.emb.state_dict()[f'{i}.weight'].mean().item()
-                log_dict[f'train/motion_emb_{i}'] = self.model.motion_emb.state_dict()[f'{i}.weight'].mean().item()
 
             self.log_dict(log_dict, prog_bar=True, logger=True, on_step=True, on_epoch=False)
 
@@ -289,11 +246,7 @@ class MusicMotionTransformer(pl.LightningModule):
         music_code, motion_code, text_cond = batch[self.music_key], batch[self.motion_key], batch[self.text_cond_key]
 
         if self.stage == 'train_music_motion':
-            # mode = random.choice(['music_motion', 'music2motion', 'motion2music'])
-            if self.is_pretraining:
-                mode = 'music2motion'
-            else:
-                mode = 'music_motion'
+            mode = random.choice(['music_motion', 'music2motion', 'motion2music'])
             text_condition = self.prepare_text_condition(text_cond, mode)
 
             music_output, motion_output = self.model.compute_predictions(
@@ -307,16 +260,15 @@ class MusicMotionTransformer(pl.LightningModule):
             total_loss = music_loss * (1 - self.motion_weight) + motion_loss * self.motion_weight
 
             self.log("val/loss", total_loss, prog_bar=True, logger=True, on_step=True, on_epoch=True)
-            self.log(f"val/{mode}_loss", total_loss, prog_bar=True, logger=True, on_step=True, on_epoch=True)
-            self.log(f"val/{mode}_music_loss", music_loss, prog_bar=True, logger=True, on_step=True, on_epoch=True)
-            self.log(f"val/{mode}_motion_loss", motion_loss, prog_bar=True, logger=True, on_step=True, on_epoch=True)
+            self.log("val/music_loss", music_loss, prog_bar=True, logger=True, on_step=True, on_epoch=True)
+            self.log("val/motion_loss", motion_loss, prog_bar=True, logger=True, on_step=True, on_epoch=True)
 
-            # log_dict = {}
-            # for k in range(len(music_loss_per_codebook)):
-            #     log_dict[f'val/music_ce_q{k + 1}'] = music_loss_per_codebook[k]
-            #     log_dict[f'val/motion_ce_q{k + 1}'] = motion_loss_per_codebook[k]
-            #
-            # self.log_dict(log_dict, prog_bar=True, logger=True, on_step=True, on_epoch=True)
+            log_dict = {}
+            for k in range(len(music_loss_per_codebook)):
+                log_dict[f'val/music_ce_q{k + 1}'] = music_loss_per_codebook[k]
+                log_dict[f'val/motion_ce_q{k + 1}'] = motion_loss_per_codebook[k]
+
+            self.log_dict(log_dict, prog_bar=True, logger=True, on_step=True, on_epoch=True)
 
         else:
             batch_size = len(text_cond)
@@ -384,7 +336,6 @@ class MusicMotionTransformer(pl.LightningModule):
         attributes = [ConditioningAttributes(text={'description': description}) for description in descriptions]
 
         attributes = self.model.cfg_dropout(attributes)
-
         attributes = self.model.att_dropout(attributes)
 
         # print drop out results for debug

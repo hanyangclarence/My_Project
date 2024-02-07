@@ -9,7 +9,7 @@ model:
     motion_weight: 0.1
     length_single_modal: 500
     feature_frame_rate: 50
-    is_pretraining: True
+
     monitor: "val/loss"
 
     generation_params:
@@ -57,8 +57,8 @@ data:
         split: "train"
         music_meta_dir: 'data/music'
         motion_meta_dir: 'data/motion'
-        music_code_dir: 'data/music/music4all_codes'
-        motion_code_dir: 'data/motion/aligned_motion_code_music4all_60hz'
+        music_code_dir: 'data/music/music_code'
+        motion_code_dir: 'data/motion/aligned_motion_code'
         duration: 10
         dropout_prob: 0.6
         vqvae_sr: 32000
@@ -70,8 +70,8 @@ data:
         split: "val"
         music_meta_dir: 'data/music'
         motion_meta_dir: 'data/motion'
-        music_code_dir: 'data/music/music4all_codes'
-        motion_code_dir: 'data/motion/aligned_motion_code_music4all_60hz'
+        music_code_dir: 'data/music/music_code'
+        motion_code_dir: 'data/motion/aligned_motion_code'
         duration: 10
         dropout_prob: 0.6
         vqvae_sr: 32000
