@@ -75,5 +75,9 @@ After stage 1:
 Then start with e12
 
     This sounds better though
+    e3, gs4: 'frechet_distance': 46.6195, 'frechet_audio_distance': 7.1361, 'kl_sigmoid': 6.7574, 'kl_softmax': 2.0593
+    e6, gs4:
+    e9, gs4:
+    e12, gs4: 'frechet_distance': 46.4299, 'frechet_audio_distance': 7.2615, 'kl_sigmoid': 7.107, 'kl_softmax': 2.0907
 
 
