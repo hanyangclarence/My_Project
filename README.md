@@ -15,5 +15,5 @@ We start with e12 from 3.2
 Also, I removed the motion-to-music attention. Now this should be absolutely independent.
 
 
-# 5.3: Try to train on spotify dataset
+## 5.3: Try to train on spotify dataset
 first we clean the dataset using preprocessing/clean_spotify.py
