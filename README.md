@@ -76,8 +76,8 @@ Then start with e12
 
     This sounds better though
     e3, gs4: 'frechet_distance': 46.6195, 'frechet_audio_distance': 7.1361, 'kl_sigmoid': 6.7574, 'kl_softmax': 2.0593
-    e6, gs4:
-    e9, gs4:
+    e6, gs4: 'frechet_distance': 46.8051, 'frechet_audio_distance': 7.8075, 'kl_sigmoid': 7.04, 'kl_softmax': 2.0856
+    e9, gs4: 'frechet_distance': 46.2661, 'frechet_audio_distance': 7.6441, 'kl_sigmoid': 7.0019, 'kl_softmax': 2.0661
     e12, gs4: 'frechet_distance': 46.4299, 'frechet_audio_distance': 7.2615, 'kl_sigmoid': 7.107, 'kl_softmax': 2.0907
 
 
