@@ -28,7 +28,6 @@ _HF_MODEL_CHECKPOINTS_MAP = {
 # trainable keys in music-to-motion pretraining
 # this includes motion codebook, motion feed-forward and motion classification head
 trainable_keys = [
-    'motion_emb',
     'motion_linears',
     'linear1_motion',
     'linear2_motion',
