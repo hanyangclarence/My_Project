@@ -178,9 +178,9 @@ class MusicMotionTransformer(pl.LightningModule):
             motion_loss, motion_loss_per_codebook = self.compute_cross_entropy(motion_logits, motion_code, motion_mask)
             total_loss = music_loss * (1 - self.motion_weight) + motion_loss * self.motion_weight
 
-            self.log("train/loss", total_loss, prog_bar=True, logger=True, on_step=True, on_epoch=False)
-            self.log("train/music_loss", music_loss, prog_bar=True, logger=True, on_step=True, on_epoch=False)
-            self.log("train/motion_loss", motion_loss, prog_bar=True, logger=True, on_step=True, on_epoch=False)
+            self.log("train/loss", total_loss, prog_bar=True, logger=True, on_step=True, on_epoch=False, sync_dist=True)
+            self.log("train/music_loss", music_loss, prog_bar=True, logger=True, on_step=True, on_epoch=False, sync_dist=True)
+            self.log("train/motion_loss", motion_loss, prog_bar=True, logger=True, on_step=True, on_epoch=False, sync_dist=True)
 
             log_dict = {}
             for k in range(len(music_loss_per_codebook)):
@@ -207,7 +207,7 @@ class MusicMotionTransformer(pl.LightningModule):
                 lr_scheduler.step()
             optimizer.zero_grad()
 
-            self.log_dict(log_dict, prog_bar=True, logger=True, on_step=True, on_epoch=False)
+            self.log_dict(log_dict, prog_bar=True, logger=True, on_step=True, on_epoch=False, sync_dist=True)
 
         else:  # train the text generation model
             batch_size = len(text_cond)
@@ -227,7 +227,7 @@ class MusicMotionTransformer(pl.LightningModule):
 
             text_loss = self.text_model(text_cond, music_motion_context)
 
-            self.log("train/text_loss", text_loss, prog_bar=True, logger=True, on_step=True, on_epoch=False)
+            self.log("train/text_loss", text_loss, prog_bar=True, logger=True, on_step=True, on_epoch=False, sync_dist=True)
 
             optimizer = self.optimizers().optimizer
             lr_scheduler = self.lr_schedulers()
@@ -259,16 +259,16 @@ class MusicMotionTransformer(pl.LightningModule):
             motion_loss, motion_loss_per_codebook = self.compute_cross_entropy(motion_logits, motion_code, motion_mask)
             total_loss = music_loss * (1 - self.motion_weight) + motion_loss * self.motion_weight
 
-            self.log("val/loss", total_loss, prog_bar=True, logger=True, on_step=True, on_epoch=True)
-            self.log("val/music_loss", music_loss, prog_bar=True, logger=True, on_step=True, on_epoch=True)
-            self.log("val/motion_loss", motion_loss, prog_bar=True, logger=True, on_step=True, on_epoch=True)
+            self.log("val/loss", total_loss, prog_bar=True, logger=True, on_step=True, on_epoch=True, sync_dist=True)
+            self.log("val/music_loss", music_loss, prog_bar=True, logger=True, on_step=True, on_epoch=True, sync_dist=True)
+            self.log("val/motion_loss", motion_loss, prog_bar=True, logger=True, on_step=True, on_epoch=True, sync_dist=True)
 
             log_dict = {}
             for k in range(len(music_loss_per_codebook)):
                 log_dict[f'val/music_ce_q{k + 1}'] = music_loss_per_codebook[k]
                 log_dict[f'val/motion_ce_q{k + 1}'] = motion_loss_per_codebook[k]
 
-            self.log_dict(log_dict, prog_bar=True, logger=True, on_step=True, on_epoch=True)
+            self.log_dict(log_dict, prog_bar=True, logger=True, on_step=True, on_epoch=True, sync_dist=True)
 
         else:
             batch_size = len(text_cond)
@@ -288,7 +288,7 @@ class MusicMotionTransformer(pl.LightningModule):
 
             text_loss = self.text_model(text_cond, music_motion_context)
 
-            self.log("val/text_loss", text_loss, prog_bar=True, logger=True, on_step=True, on_epoch=True)
+            self.log("val/text_loss", text_loss, prog_bar=True, logger=True, on_step=True, on_epoch=True, sync_dist=True)
 
     def compute_cross_entropy(
         self, logits: torch.Tensor, targets: torch.LongTensor, mask: torch.Tensor
