@@ -23,3 +23,8 @@ Also, I removed the motion-to-music attention. Now this should be absolutely ind
 ## 5.3: Try to train on spotify dataset
 first we clean the dataset using preprocessing/clean_spotify.py.
 Then we start from e12 3.2
+
+    e6, gs3: 'frechet_distance': 50.943, 'frechet_audio_distance': 7.9871, 'kl_sigmoid': 7.4582, 'kl_softmax': 2.2509
+    e12, gs3: 'frechet_distance': 49.3025, 'frechet_audio_distance': 7.7787, 'kl_sigmoid': 7.6986, 'kl_softmax': 2.2866
+    e18, gs3: 'frechet_distance': 52.3687, 'frechet_audio_distance': 10.1335, 'kl_sigmoid': 7.6917, 'kl_softmax': 2.2882
+    e24, gs3: 'frechet_distance': 50.4968, 'frechet_audio_distance': 8.1698, 'kl_sigmoid': 7.9336, 'kl_softmax': 2.301
