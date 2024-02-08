@@ -4,6 +4,11 @@
 # Testing:
 7.1; 8.1
 
+# TODO:
+1, separate music and motion conditioning: doing on attempt9
+
+2, improve from 3.2 that in the attention mask, music should not attend to motion 
+
 
 
 <div align="center">  
