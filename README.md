@@ -13,3 +13,9 @@ Give 100% weight to motion. I didn't add the two modality embeddings
     e24, gs3: 'fid_k': 8.23244474093886, 'fid_m': (13.967190187684949-1.5383677137762822e-08j), 'div_k': 7.862186014514038, 'div_m': 7.439229777040024
 
 Then we continue with e18
+
+    musiccap
+    e6, gs4: 'frechet_distance': 44.9365, 'frechet_audio_distance': 7.2114, 'kl_sigmoid': 7.0391, 'kl_softmax': 2.1157
+    e12, gs4: 'frechet_distance': 44.8817, 'frechet_audio_distance': 7.3861, 'kl_sigmoid': 7.1694, 'kl_softmax': 2.1071
+    e18, gs4: 'frechet_distance': 45.9183, 'frechet_audio_distance': 6.9739, 'kl_sigmoid': 7.0027, 'kl_softmax': 2.1141
+    e24, gs4: 'frechet_distance': 45.1197, 'frechet_audio_distance': 7.3052, 'kl_sigmoid': 7.0751, 'kl_softmax': 2.138
