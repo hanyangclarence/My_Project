@@ -11,8 +11,7 @@ class TextGenerator(nn.Module):
         super().__init__()
 
         self.tokenizer = AutoTokenizer.from_pretrained(model)
-        self.tokenizer.add_tokens(['<music_prompt_start>', '<music_prompt_end>',
-                                   '<motion_prompt_start>', '<motion_prompt_end>'])
+        self.tokenizer.add_tokens('<separation>')
         self.max_length = max_length
         self.context_dim = context_dim
         self.self_dim = self_dim

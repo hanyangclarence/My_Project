@@ -31,7 +31,9 @@ from .streaming import StreamingModule
 _efficient_attention_backend: str = 'torch'
 
 
-def scaled_dot_product_attention(query, key, value, attn_mask=None, dropout_p=0.0, is_causal=False, scale=None) -> torch.Tensor:
+def scaled_dot_product_attention(
+    query, key, value, attn_mask=None, dropout_p=0.0, is_causal=False, scale=None, cross_attn_mask=None
+) -> torch.Tensor:
     L, S = query.size(-2), key.size(-2)
     scale_factor = 1 / math.sqrt(query.size(-1)) if scale is None else scale
     attn_bias = torch.zeros(L, S, dtype=query.dtype, device=query.device)
@@ -42,13 +44,22 @@ def scaled_dot_product_attention(query, key, value, attn_mask=None, dropout_p=0.
         attn_bias.to(query.dtype)
 
     if attn_mask is not None:
-        assert is_causal is False
+        assert is_causal is False and cross_attn_mask is None
         if attn_mask.dtype == torch.bool:
             attn_mask.masked_fill_(attn_mask.logical_not(), float("-inf"))
         else:
             attn_bias += attn_mask
 
-    attn_weight = query @ key.transpose(-2, -1) * scale_factor
+    attn_bias = attn_bias[None, ...]  # [L_feature, L_cond] -> [1, L_feature, L_cond]
+    if cross_attn_mask is not None:
+        assert attn_mask is None
+        attn_bias = attn_bias.repeat(query.shape[0], 1, 1)  # [B, L_feature, L_cond]
+        feature_len = attn_bias.shape[1]
+        attn_bias[:, :feature_len//2, :] += cross_attn_mask[:, :1, :]
+        attn_bias[:, feature_len//2:, :] += cross_attn_mask[:, 1:, :]
+
+    attn_weight = query @ key.transpose(-2, -1) * scale_factor  # [B, head, L_feature, L_cond]
+    attn_bias = attn_bias.unsqueeze(1)  # [B, 1, L_feature, L_cond]
     attn_weight += attn_bias
     attn_weight = torch.softmax(attn_weight, dim=-1)
     attn_weight = torch.dropout(attn_weight, dropout_p, train=True)
@@ -341,15 +352,15 @@ class StreamingMultiheadAttention(StreamingModule):
 
     def forward(self, query: torch.Tensor, key: torch.Tensor, value: torch.Tensor,
                 key_padding_mask=None, need_weights=False, attn_mask=None,
-                average_attn_weights=True, is_causal=False):
+                average_attn_weights=True, is_causal=False, cross_attn_mask=None):
         # if attn_mask is not None:
         #     assert not self.causal, "crafted attention mask conflicts with default causal attention mask."
         # assert not is_causal, ("New param added in torch 2.0.1 not supported, "
         #                        "use the causal args in the constructor.")
         if attn_mask is None:
-            assert self.cross_attention
+            assert self.cross_attention and cross_attn_mask is not None
         else:
-            assert not self.cross_attention
+            assert not self.cross_attention and cross_attn_mask is None
 
         time_dim = _get_attention_time_dimension(self.memory_efficient)
         if time_dim == 2:
@@ -438,7 +449,7 @@ class StreamingMultiheadAttention(StreamingModule):
                             q, k, v, is_causal=attn_mask is not None, dropout_p=p)
                     else:
                         x = scaled_dot_product_attention(
-                            q, k, v, attn_mask=attn_mask, dropout_p=p)
+                            q, k, v, attn_mask=attn_mask, dropout_p=p, cross_attn_mask=cross_attn_mask)
                 else:
                     x = ops.memory_efficient_attention(q, k, v, attn_mask, p=p)
             else:
@@ -573,11 +584,12 @@ class StreamingTransformerLayer(nn.TransformerEncoderLayer):
         self.norm2_motion = create_norm_fn(norm, d_model, **factory_kwargs)
 
     def _cross_attention_block(self, src: torch.Tensor,
-                               cross_attention_src: torch.Tensor) -> torch.Tensor:
+                               cross_attention_src: torch.Tensor, 
+                               cross_attn_mask: torch.Tensor) -> torch.Tensor:
         assert self.cross_attention is not None
         # queries are from src, keys and values from cross_attention_src.
         x = self.cross_attention(
-            src, cross_attention_src, cross_attention_src, need_weights=False)[0]
+            src, cross_attention_src, cross_attention_src, need_weights=False, cross_attn_mask=cross_attn_mask)[0]
         return self.dropout_cross(x)  # type: ignore
 
     # feed forward block for motion mlp
@@ -587,11 +599,12 @@ class StreamingTransformerLayer(nn.TransformerEncoderLayer):
 
     def forward(self, src: torch.Tensor, src_mask: tp.Optional[torch.Tensor] = None,  # type: ignore
                 src_key_padding_mask: tp.Optional[torch.Tensor] = None,
-                cross_attention_src: tp.Optional[torch.Tensor] = None):
+                cross_attention_src: tp.Optional[torch.Tensor] = None, 
+                cross_attn_mask: tp.Optional[torch.Tensor] = None):
         if self.cross_attention is None:
-            assert cross_attention_src is None
+            assert cross_attention_src is None and cross_attn_mask is None
         else:
-            assert cross_attention_src is not None
+            assert cross_attention_src is not None and cross_attn_mask is not None
         x = src
         S = x.shape[1]
         if self.norm_first:
@@ -600,7 +613,7 @@ class StreamingTransformerLayer(nn.TransformerEncoderLayer):
             if cross_attention_src is not None:
                 x = x + self.layer_scale_cross(
                     self._cross_attention_block(
-                        self.norm_cross(x), cross_attention_src))
+                        self.norm_cross(x), cross_attention_src, cross_attn_mask))
             x_music = x[:, :S//2]
             x_motion = x[:, S//2:]
             x_music = x_music + self.layer_scale_2(self._ff_block(self.norm2(x_music)))
@@ -612,7 +625,7 @@ class StreamingTransformerLayer(nn.TransformerEncoderLayer):
             if cross_attention_src is not None:
                 x = self.norm_cross(
                     x + self.layer_scale_cross(
-                        self._cross_attention_block(src, cross_attention_src)))
+                        self._cross_attention_block(src, cross_attention_src, cross_attn_mask)))
             x_music = x[:, :S // 2]
             x_motion = x[:, S // 2:]
             x_music = self.norm2(x_music + self.layer_scale_2(self._ff_block(x_music)))

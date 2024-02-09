@@ -166,7 +166,7 @@ class MusicMotionTransformer(pl.LightningModule):
         if self.stage == 'train_music_motion':  # train the music motion lm
             # # randomly choose the mode on this training step
             mode = random.choice(['music_motion', 'music2motion', 'motion2music'])
-            text_condition = self.prepare_text_condition(text_cond, mode)
+            text_condition = self.prepare_text_condition(text_cond)  # here mode is useless actually
 
             music_output, motion_output = self.model.compute_predictions(
                 music_code, motion_code, mode, [], condition_tensors=text_condition
@@ -213,9 +213,7 @@ class MusicMotionTransformer(pl.LightningModule):
             batch_size = len(text_cond)
 
             # use null condition for music motion network
-            descriptions: tp.List[str] = [
-                '<music_prompt_start> <music_prompt_end> <motion_prompt_start> <motion_prompt_end>'
-            ] * batch_size
+            descriptions: tp.List[str] = ['<separation>'] * batch_size
             null_text_condition = self.prepare_text_condition(descriptions, mode='music_motion')
 
             # get music motion features using music motion LM
@@ -247,7 +245,7 @@ class MusicMotionTransformer(pl.LightningModule):
 
         if self.stage == 'train_music_motion':
             mode = random.choice(['music_motion', 'music2motion', 'motion2music'])
-            text_condition = self.prepare_text_condition(text_cond, mode)
+            text_condition = self.prepare_text_condition(text_cond)
 
             music_output, motion_output = self.model.compute_predictions(
                 music_code, motion_code, mode, [], condition_tensors=text_condition
@@ -274,9 +272,7 @@ class MusicMotionTransformer(pl.LightningModule):
             batch_size = len(text_cond)
 
             # use null condition for music motion network
-            descriptions: tp.List[str] = [
-                '<music_prompt_start> <music_prompt_end> <motion_prompt_start> <motion_prompt_end>'
-            ] * batch_size
+            descriptions: tp.List[str] = ['<separation>'] * batch_size
             null_text_condition = self.prepare_text_condition(descriptions, mode='music_motion')
 
             # get music motion features using music motion LM
@@ -311,40 +307,58 @@ class MusicMotionTransformer(pl.LightningModule):
         ce = ce / K
         return ce, ce_per_codebook
 
-    def prepare_text_condition(self, descriptions: tp.List[str], mode: str) -> ConditionTensors:
-        if mode == 'music2motion':
-            dropped_out_descriptions = []
-            # remove music descriptions
-            for desc in descriptions:
-                motion_description = desc.split('<music_prompt_end> ')[-1]
-                dropped_out_descriptions.append(
-                    '<music_prompt_start> <music_prompt_end> ' + motion_description
-                )
-            descriptions = dropped_out_descriptions
-        elif mode == 'motion2music':
-            dropped_out_descriptions = []
-            # remove motion descriptions
-            for desc in descriptions:
-                music_description = desc.split(' <motion_prompt_start>')[0]
-                dropped_out_descriptions.append(
-                    music_description + ' <motion_prompt_start> <motion_prompt_end>'
-                )
-            descriptions = dropped_out_descriptions
-        else:
-            assert mode == 'music_motion'
+    def prepare_text_condition(self, descriptions: tp.List[str], mode: tp.Optional[str] = None) -> ConditionTensors:
+        music_description_list = []
+        motion_description_list = []
 
-        attributes = [ConditioningAttributes(text={'description': description}) for description in descriptions]
+        for desc in descriptions:
+            music_description = desc.split('<separation>')[0].strip()
+            motion_description = desc.split('<separation>')[-1].strip()
 
-        attributes = self.model.cfg_dropout(attributes)
-        attributes = self.model.att_dropout(attributes)
+            current_mode = mode if mode is not None else random.choice(['music_motion', 'music2motion', 'motion2music'])
+            if current_mode == 'music2motion':
+                music_description_list.append('')
+                motion_description_list.append(motion_description)
+            elif current_mode == 'motion2music':
+                music_description_list.append(music_description)
+                motion_description_list.append('')
+            else:
+                music_description_list.append(music_description)
+                motion_description_list.append(motion_description)
+
+        attributes_music = [ConditioningAttributes(text={'description': description}) for description in music_description_list]
+        attributes_motion = [ConditioningAttributes(text={'description': description}) for description in motion_description_list]
+
+        attributes_music = self.model.cfg_dropout(attributes_music)
+        attributes_music = self.model.att_dropout(attributes_music)
+        attributes_motion = self.model.cfg_dropout(attributes_motion)
+        attributes_motion = self.model.att_dropout(attributes_motion)
 
         # print drop out results for debug
-        print(f"{mode}: {self.model.training}, {attributes[0].text['description']}")
+        print(f"{mode}: {self.model.training}, [{attributes_music[0].text['description']}]++[{attributes_motion[0].text['description']}]")
 
-        tokenized = self.model.condition_provider.tokenize(attributes, device=self.device)
-        condition_tensors = self.model.condition_provider(tokenized)
+        tokenized_music = self.model.condition_provider.tokenize(attributes_music, device=self.device)
+        condition_tensors_music = self.model.condition_provider(tokenized_music)
+        tokenized_motion = self.model.condition_provider.tokenize(attributes_motion, device=self.device)
+        condition_tensors_motion = self.model.condition_provider(tokenized_motion)
 
-        return condition_tensors
+        # merge music and motion
+        music_condition_tensor = condition_tensors_music['description'][0]  #[B, L_music, D]
+        motion_condition_tensor = condition_tensors_motion['description'][0]  #[B, L_motion, D]
+        condition_tensor = torch.cat([music_condition_tensor, motion_condition_tensor], dim=1)  #[B, L_music + L_motion, D]
+
+        # construct cross-attn mask for conditions
+        music_condition_mask = condition_tensors_music['description'][1]  #[B, L_music]
+        motion_condition_mask = condition_tensors_motion['description'][1]  #[B, L_motion]
+        condition_mask = torch.zeros(
+            (music_condition_mask.shape[0], 2, music_condition_mask.shape[-1] + motion_condition_mask.shape[-1]), 
+            dtype=torch.bool, device=music_condition_mask.device)  # [B, 2, L_music+L_motion]
+        condition_mask[:, 0, :music_condition_mask.shape[-1]] = music_condition_mask.bool() 
+        condition_mask[:, 1, music_condition_mask.shape[-1]:] = motion_condition_mask.bool()
+
+        condition: ConditionTensors = {'description': (condition_tensor, condition_mask)}
+
+        return condition
 
     def generate_sample(
         self,
@@ -378,9 +392,7 @@ class MusicMotionTransformer(pl.LightningModule):
         sequence_length = music_code.shape[-1] if music_code is not None else motion_code.shape[-1]
         mode = 'music2motion' if music_code is not None else 'motion2music'
         if text_description is None:
-            text_description = [
-                '<music_prompt_start> <music_prompt_end> <motion_prompt_start> <motion_prompt_end>'
-            ] * batch_size
+            text_description: tp.List[str] = ['<separation>'] * batch_size
 
         duration = sequence_length / self.feature_frame_rate
 
@@ -402,9 +414,7 @@ class MusicMotionTransformer(pl.LightningModule):
     ) -> tp.Union[tp.List[str], tp.Tuple[tp.List[str], torch.LongTensor, torch.LongTensor]]:
         music_code, motion_code, text_cond = batch[self.music_key], batch[self.motion_key], batch[self.text_cond_key]
         batch_size = len(text_cond)
-        descriptions: tp.List[str] = [
-            '<music_prompt_start> <music_prompt_end> <motion_prompt_start> <motion_prompt_end>'
-        ] * batch_size
+        descriptions: tp.List[str] = ['<separation>'] * batch_size
         null_text_condition = self.prepare_text_condition(descriptions, mode='music_motion')  # use null condition
 
         music_motion_context = self.model.get_music_motion_context(
@@ -423,32 +433,32 @@ class MusicMotionTransformer(pl.LightningModule):
         descriptions: tp.Sequence[tp.Optional[str]],
         mode: str
     ) -> tp.List[ConditioningAttributes]:
-        if mode == 'music2motion':
-            dropped_out_descriptions = []
-            # remove music descriptions
-            for desc in descriptions:
-                motion_description = desc.split('<music_prompt_end> ')[-1]
-                dropped_out_descriptions.append(
-                    '<music_prompt_start> <music_prompt_end> ' + motion_description
-                )
-            descriptions = dropped_out_descriptions
-        elif mode == 'motion2music':
-            dropped_out_descriptions = []
-            # remove motion descriptions
-            for desc in descriptions:
-                music_description = desc.split(' <motion_prompt_start>')[0]
-                dropped_out_descriptions.append(
-                    music_description + ' <motion_prompt_start> <motion_prompt_end>'
-                )
-            descriptions = dropped_out_descriptions
-        else:
-            assert mode == 'music_motion'
+        music_description_list = []
+        motion_description_list = []
 
-        attributes = [ConditioningAttributes(text={'description': description}) for description in descriptions]
+        for desc in descriptions:
+            music_description = desc.split('<separation>')[0].strip()
+            motion_description = desc.split('<separation>')[-1].strip()
+
+            current_mode = mode if mode is not None else random.choice(['music_motion', 'music2motion', 'motion2music'])
+            if current_mode == 'music2motion':
+                music_description_list.append('')
+                motion_description_list.append(motion_description)
+            elif current_mode == 'motion2music':
+                music_description_list.append(music_description)
+                motion_description_list.append('')
+            else:
+                music_description_list.append(music_description)
+                motion_description_list.append(motion_description)
+
+        attributes_music = [ConditioningAttributes(text={'description': description}) for description in music_description_list]
+        attributes_motion = [ConditioningAttributes(text={'description': description}) for description in motion_description_list]
+        attributes = attributes_music + attributes_motion
 
         # print debug info:
-        for i in range(len(attributes)):
-            print(f"Generating in {mode} with prompt {attributes[i].text['description']}")
+        for i in range(len(attributes_music)):
+            print(f"Generating in {mode} with music prompt [{attributes_music[i].text['description']}] and "
+                  f"motion prompt [{attributes_motion[i].text['description']}]")
 
         for attr in attributes:
             attr.wav['self_wav'] = WavCondition(

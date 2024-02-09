@@ -151,9 +151,7 @@ if __name__ == "__main__":
         desc_choices = [f'The genre of the dance is {genre}.', f'The style of the dance is {genre}.',
                         f'This is a {genre} style dance.']
         dance_description = random.choice(desc_choices)
-        full_description = '<music_prompt_start> ' + music_prompt_list[i] + \
-                           ' <music_prompt_end> <motion_prompt_start> ' + \
-                           dance_description + ' <motion_prompt_end>'
+        full_description = music_prompt_list[i] + ' <separation> ' + dance_description
         text_prompt_list.append(full_description)
 
     with cs.open(pjoin(save_path, 'text_prompt.txt'), 'w') as f:

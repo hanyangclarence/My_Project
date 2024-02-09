@@ -274,9 +274,7 @@ class MusicMotionTextDataset(Dataset):
 
         # text_prompt = music_text_prompt.capitalize() + ' ' + motion_description.capitalize()
         # Here I change to use tokens to separate them
-        text_prompt = '<music_prompt_start> ' + music_text_prompt.capitalize() + \
-                      ' <music_prompt_end> <motion_prompt_start> ' + \
-                      motion_description.capitalize() + ' <motion_prompt_end>'
+        text_prompt = music_text_prompt.capitalize() + ' <separation> ' + motion_description.capitalize()
 
         return {
             'motion_code': motion_code,  # (4, 500)

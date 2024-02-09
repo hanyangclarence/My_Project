@@ -409,10 +409,6 @@ class T5Conditioner(TextConditioner):
 
                 self.t5_tokenizer = T5Tokenizer.from_pretrained(name)
 
-                # add special tokens for music and motion
-                self.t5_tokenizer.add_tokens(['<music_prompt_start>', '<music_prompt_end>',
-                                              '<motion_prompt_start>', '<motion_prompt_end>'])
-
                 t5 = T5EncoderModel.from_pretrained(name).train(mode=finetune)
             finally:
                 logging.disable(previous_level)
@@ -446,7 +442,10 @@ class T5Conditioner(TextConditioner):
         empty_idx = torch.LongTensor([i for i, xi in enumerate(entries) if xi == ""])
         inputs = self.t5_tokenizer(entries, return_tensors='pt', padding=True).to(device)
         mask = inputs['attention_mask']
-        mask[empty_idx, :] = 0  # zero-out index where the input is non-existant
+
+        # I remove this. This seems unreasonable
+        # mask[empty_idx, :] = 0  # zero-out index where the input is non-existant
+
         return inputs
 
     def forward(self, inputs: tp.Dict[str, torch.Tensor]) -> ConditionType:
@@ -484,7 +483,7 @@ def dropout_condition(sample: ConditioningAttributes, condition_type: str, condi
         embed = sample.joint_embed[condition]
         sample.joint_embed[condition] = nullify_joint_embed(embed)
     else:
-        sample.text[condition] = '<music_prompt_start> <music_prompt_end> <motion_prompt_start> <motion_prompt_end>'
+        sample.text[condition] = ''
 
     return sample
 

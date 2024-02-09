@@ -132,9 +132,7 @@ if __name__ == "__main__":
     text_prompt_list = []
     for i, motion_description in enumerate(motion_description_list):
         music_description = random.choice(music_description_list)
-        text_prompt = '<music_prompt_start> ' + music_description + \
-                      ' <music_prompt_end> <motion_prompt_start> ' + \
-                      motion_description + ' <motion_prompt_end>'
+        text_prompt = music_description + ' <separation> ' + motion_description
         text_prompt_list.append(text_prompt)
 
     assert len(text_prompt_list) == len(motion_id_list)

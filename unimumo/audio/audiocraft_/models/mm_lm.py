@@ -183,6 +183,7 @@ class LMModel(StreamingModule):
         conditions: tp.List[ConditioningAttributes],
         src_mask: tp.Optional[torch.Tensor] = None,
         condition_tensors: tp.Optional[ConditionTensors] = None,
+        cross_attn_mask: tp.Optional[torch.Tensor] = None,
         return_last_layer: bool = False
     ) -> tp.Union[tp.Tuple[torch.Tensor, torch.Tensor], torch.Tensor]:
         B, K, S = sequence.shape
@@ -191,6 +192,7 @@ class LMModel(StreamingModule):
         input_ = sum([self.emb[k](sequence[:, k]) for k in range(K)])  # [B, S, dim]
 
         if condition_tensors is None:
+            assert False, "This part is not used! Cross-attn mask is not set in this part!"
             assert not self._is_streaming, "Conditions tensors should be precomputed when streaming."
             # apply dropout modules
             conditions = self.cfg_dropout(conditions)
@@ -208,7 +210,8 @@ class LMModel(StreamingModule):
         input_, cross_attention_input = self.fuser(input_, condition_tensors)
 
         out = self.transformer(
-            input_, separate_positional_encoding=True, cross_attention_src=cross_attention_input, src_mask=src_mask
+            input_, separate_positional_encoding=True, cross_attention_src=cross_attention_input, src_mask=src_mask,
+            cross_attn_mask=cross_attn_mask
         )
         if self.out_norm:
             out = self.out_norm(out)
@@ -255,11 +258,13 @@ class LMModel(StreamingModule):
         sequence_codes = torch.cat((music_sequence_codes, motion_sequence_codes), dim=-1)
 
         # prepare self-attention mask
-        self_attn_map = self.get_self_attn_mask(music_sequence_codes.shape[-1], motion_sequence_codes.shape[-1], mode)
+        self_attn_mask = self.get_self_attn_mask(music_sequence_codes.shape[-1], motion_sequence_codes.shape[-1], mode)
+        # get cross-attention mask
+        cross_attn_mask = torch.where(condition_tensors['description'][-1], 0., float('-inf'))
 
         # apply model on pattern sequence
         music_logits, motion_logits = self(
-            sequence_codes, conditions, src_mask=self_attn_map, condition_tensors=condition_tensors
+            sequence_codes, conditions, src_mask=self_attn_mask, condition_tensors=condition_tensors, cross_attn_mask=cross_attn_mask
         )  # both [B, K, S, card]
 
         # map back the logits on pattern sequence to logits on original codes: [B, K, S, card] -> [B, K, T, card]
@@ -308,13 +313,15 @@ class LMModel(StreamingModule):
         sequence_codes = torch.cat((music_sequence_codes, motion_sequence_codes), dim=-1)
 
         # prepare self-attention mask
-        self_attn_map = self.get_self_attn_mask(
+        self_attn_mask = self.get_self_attn_mask(
             music_sequence_codes.shape[-1], motion_sequence_codes.shape[-1], mode='music_motion'
         )
+        # prepare cross-attention mask for conditions
+        cross_attn_mask = torch.where(condition_tensors['description'][-1], 0., float('-inf'))
 
         # apply model on pattern sequence
         music_motion_context = self(
-            sequence_codes, conditions, src_mask=self_attn_map,
+            sequence_codes, conditions, src_mask=self_attn_mask, cross_attn_mask=cross_attn_mask,
             condition_tensors=condition_tensors, return_last_layer=True
         )  # [B, S, dim]
 
@@ -357,7 +364,10 @@ class LMModel(StreamingModule):
         cfg_coef = self.cfg_coef if cfg_coef is None else cfg_coef
 
         sequence = torch.cat((music_sequence, motion_sequence), dim=-1)
+        # get self-attn mask
         src_mask = self.get_self_attn_mask(music_sequence.shape[-1], motion_sequence.shape[-1], mode=mode)
+        # get cross-attention mask
+        cross_attn_mask = torch.where(cfg_conditions['description'][-1], 0., float('-inf'))
 
         assert isinstance(cfg_conditions, dict)
         condition_tensors = cfg_conditions
@@ -366,7 +376,7 @@ class LMModel(StreamingModule):
             sequence = torch.cat([sequence, sequence], dim=0)
 
         music_all_logits, motion_all_logits = self(
-            sequence, conditions=[], condition_tensors=condition_tensors, src_mask=src_mask
+            sequence, conditions=[], condition_tensors=condition_tensors, src_mask=src_mask, cross_attn_mask=cross_attn_mask
         )
 
         if condition_tensors:
@@ -433,25 +443,41 @@ class LMModel(StreamingModule):
         assert mode in ['music_motion', 'music2motion', 'motion2music']
         assert music_code is None or motion_code is None, "cannot provide both music and motion code."
 
-        # Checking all input shapes are consistent.
-        possible_num_samples = []
-        if num_samples is not None:
-            possible_num_samples.append(num_samples)
-        elif conditions:
-            possible_num_samples.append(len(conditions))
-        else:
-            possible_num_samples.append(1)
-        assert [x == possible_num_samples[0] for x in possible_num_samples], "Inconsistent inputs shapes"
-        num_samples = possible_num_samples[0]
+        # half the condition is music, half is motion
+        num_samples = len(conditions) // 2
         assert num_samples > 0
 
         # get classifier-free guidance conditions
         cfg_conditions: CFGConditions
         if conditions:
+            music_conditions = conditions[:num_samples]
+            motion_conditions = conditions[num_samples:]
             null_conditions = ClassifierFreeGuidanceDropout(p=1.0)(conditions)
-            conditions = conditions + null_conditions
-            tokenized = self.condition_provider.tokenize(conditions, device)
-            cfg_conditions = self.condition_provider(tokenized)
+            null_music_conditions = null_conditions[:num_samples]
+            null_motion_conditions = null_conditions[num_samples:]
+            music_conditions = music_conditions + null_music_conditions
+            motion_conditions = motion_conditions + null_motion_conditions
+
+            tokenized_music = self.condition_provider.tokenize(music_conditions, device)
+            condition_tensor_music = self.condition_provider(tokenized_music)
+            tokenized_motion = self.condition_provider.tokenize(motion_conditions, device)
+            condition_tensor_motion = self.condition_provider(tokenized_motion)
+
+            # merge music and motion conditions
+            condition_tensor = torch.cat([
+                condition_tensor_music['description'][0], condition_tensor_motion['description'][0]
+            ], dim=1)  # [B*2, L_music+L_motion, D]
+            # construct cross-attn mask for conditions
+            condition_mask = torch.zeros(
+                (condition_tensor.shape[0], 2, condition_tensor.shape[-2]),
+                dtype=torch.bool, device=device
+            )  # [B*2, 2, L_music+L_motion]
+            music_condition_mask = condition_tensor_music['description'][1]  # [B*2, L_music]
+            motion_condition_mask = condition_tensor_motion['description'][1]  # [B*2, L_motion]
+            condition_mask[:, 0, :music_condition_mask.shape[-1]] = music_condition_mask.bool()
+            condition_mask[:, 1, music_condition_mask.shape[-1]:] = motion_condition_mask.bool()
+
+            cfg_conditions = {'description': (condition_tensor, condition_mask)}
         else:
             cfg_conditions = {}
 

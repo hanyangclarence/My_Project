@@ -3,3 +3,6 @@ __pycache__/
 .idea/
 events.*
 hparams.yaml
+data/
+pretrained/
+training_logs/

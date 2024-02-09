@@ -131,7 +131,7 @@ class UniMuMo(nn.Module):
         temperature: tp.Optional[float] = None
     ) -> tp.Tuple[np.ndarray, tp.Dict[str, np.ndarray]]:
         if text_description is None:
-            text_description = ['<music_prompt_start> <music_prompt_end> <motion_prompt_start> <motion_prompt_end>']
+            text_description = ['<separation>']
         assert type(text_description) is list, 'input text should be list of str'
 
         # generate batch_size number of samples for the prompt
@@ -164,7 +164,7 @@ class UniMuMo(nn.Module):
             "motion feature should be of shape [B, fps * duration, 263]"
 
         if text_description is None:
-            text_description = ['<music_prompt_start> <music_prompt_end> <motion_prompt_start> <motion_prompt_end>']
+            text_description = ['<separation>']
         assert type(text_description) is list, 'input text should be list of str'
 
         # generate batch_size number of samples for the prompt
@@ -195,7 +195,7 @@ class UniMuMo(nn.Module):
         assert waveform.ndim == 3 and waveform.shape[1] == 1, "waveform should be of shape [B, 1, 32000 * duration]"
 
         if text_description is None:
-            text_description = ['<music_prompt_start> <music_prompt_end> <motion_prompt_start> <motion_prompt_end>']
+            text_description = ['<separation>']
         assert type(text_description) is list, 'input text should be list of str'
 
         # generate batch_size number of samples for the prompt
@@ -226,7 +226,7 @@ class UniMuMo(nn.Module):
         motion_code = motion_code[..., :code_length]
 
         batch = {
-            'text': ['<music_prompt_start> <music_prompt_end> <motion_prompt_start> <motion_prompt_end>'],
+            'text': ['<separation>'],
             'music_code': music_code,
             'motion_code': motion_code
         }

@@ -156,11 +156,7 @@ if __name__ == "__main__":
         else:
             music_desc_input = music_description
             motion_desc_input = motion_description
-        text_description_list.append(
-            '<music_prompt_start> ' + music_desc_input.capitalize() +
-            ' <music_prompt_end> <motion_prompt_start> ' +
-            motion_desc_input.capitalize() + ' <motion_prompt_end>'
-        )
+        text_description_list.append(music_desc_input.capitalize() + ' <separation> ' + motion_desc_input.capitalize())
 
     # load model
     model = UniMuMo.from_checkpoint(model_ckpt)
