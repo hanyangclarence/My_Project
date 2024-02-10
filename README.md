@@ -8,6 +8,10 @@
     e30, gs4:
 
     musiccap with music captions only
+    e12, gs4: 'frechet_distance': 43.0303, 'frechet_audio_distance': 7.3304, 'kl_sigmoid': 7.1479, 'kl_softmax': 2.0062
+    e18, gs4: 'frechet_distance': 43.912, 'frechet_audio_distance': 7.0259, 'kl_sigmoid': 6.861, 'kl_softmax': 2.0599
+    e24, gs4: 'frechet_distance': 46.0804, 'frechet_audio_distance': 7.0329, 'kl_sigmoid': 6.9196, 'kl_softmax': 2.0904
+    e30, gs4: 'frechet_distance': 44.4852, 'frechet_audio_distance': 7.3429, 'kl_sigmoid': 6.8461, 'kl_softmax': 2.0632
 
     motion 5s
     e12, gs3: 'fid_k': 19.863799030687815, 'fid_m': 35.730605568571896, 'div_k': 5.544803851719285, 'div_m': 8.594486743678218
