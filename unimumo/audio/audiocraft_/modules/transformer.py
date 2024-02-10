@@ -54,9 +54,7 @@ def scaled_dot_product_attention(
     if cross_attn_mask is not None:
         assert attn_mask is None
         attn_bias = attn_bias.repeat(query.shape[0], 1, 1)  # [B, L_feature, L_cond]
-        feature_len = attn_bias.shape[1]
-        attn_bias[:, :feature_len//2, :] += cross_attn_mask[:, :1, :]
-        attn_bias[:, feature_len//2:, :] += cross_attn_mask[:, 1:, :]
+        attn_bias += cross_attn_mask
 
     attn_weight = query @ key.transpose(-2, -1) * scale_factor  # [B, head, L_feature, L_cond]
     attn_bias = attn_bias.unsqueeze(1)  # [B, 1, L_feature, L_cond]

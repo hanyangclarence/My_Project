@@ -234,8 +234,9 @@ class LMModel(StreamingModule):
         # prepare self-attention mask
         self_attn_mask = self.get_self_attn_mask(music_sequence_codes.shape[-1], music_sequence_codes.shape[-1], mode)
         # get cross-attention mask
-        cross_attn_mask = torch.where(condition_tensors['description'][-1] == 1, 0., float('-inf'))
-        print(cross_attn_mask)
+        cross_attn_mask = condition_tensors['description'][-1]
+        print(cross_attn_mask.shape, cross_attn_mask)
+        cross_attn_mask = torch.where(cross_attn_mask == 1, 0., float('-inf'))
 
         # apply model on pattern sequence
         music_logits = self(
