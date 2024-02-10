@@ -112,11 +112,6 @@ def load_mm_lm_model(
             initial_embedding = my_model_dict[k]
             initial_embedding[:pretrained_embedding.shape[0]] = pretrained_embedding
             new_dict[k] = initial_embedding
-    # initialize motion mlp with the same weight as original mlp
-    for k in my_model_dict.keys():
-        if 'linear1_motion' in k or 'linear2_motion' in k or 'norm1_motion' in k or 'norm2_motion' in k:
-            original_key_name = k.replace('_motion', '')
-            new_dict[k] = pretrained_dict[original_key_name].clone()
 
     my_model_dict.update(new_dict)
 
