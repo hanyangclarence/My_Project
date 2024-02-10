@@ -77,8 +77,6 @@ class MusicMotionTransformer(pl.LightningModule):
         self.sample_rate = 32000
         self.generation_params = generation_params
 
-        self.max_sequence_length = (length_single_modal + self.model.n_q) * 2
-
         self.scheduler_config = scheduler_config
         self.optimization_config = optimization_config
 
@@ -172,20 +170,16 @@ class MusicMotionTransformer(pl.LightningModule):
                 music_code, motion_code, mode, [], condition_tensors=text_condition
             )
             music_logits, music_mask = music_output.logits, music_output.mask
-            motion_logits, motion_mask = motion_output.logits, motion_output.mask
 
             music_loss, music_loss_per_codebook = self.compute_cross_entropy(music_logits, music_code, music_mask)
-            motion_loss, motion_loss_per_codebook = self.compute_cross_entropy(motion_logits, motion_code, motion_mask)
-            total_loss = music_loss * (1 - self.motion_weight) + motion_loss * self.motion_weight
+            total_loss = music_loss
 
             self.log("train/loss", total_loss, prog_bar=True, logger=True, on_step=True, on_epoch=False, sync_dist=True)
             self.log("train/music_loss", music_loss, prog_bar=True, logger=True, on_step=True, on_epoch=False, sync_dist=True)
-            self.log("train/motion_loss", motion_loss, prog_bar=True, logger=True, on_step=True, on_epoch=False, sync_dist=True)
 
             log_dict = {}
             for k in range(len(music_loss_per_codebook)):
                 log_dict[f'train/music_ce_q{k + 1}'] = music_loss_per_codebook[k]
-                log_dict[f'train/motion_ce_q{k + 1}'] = motion_loss_per_codebook[k]
 
             optimizer = self.optimizers().optimizer
             lr_scheduler = self.lr_schedulers()
@@ -251,20 +245,16 @@ class MusicMotionTransformer(pl.LightningModule):
                 music_code, motion_code, mode, [], condition_tensors=text_condition
             )
             music_logits, music_mask = music_output.logits, music_output.mask
-            motion_logits, motion_mask = motion_output.logits, motion_output.mask
 
             music_loss, music_loss_per_codebook = self.compute_cross_entropy(music_logits, music_code, music_mask)
-            motion_loss, motion_loss_per_codebook = self.compute_cross_entropy(motion_logits, motion_code, motion_mask)
-            total_loss = music_loss * (1 - self.motion_weight) + motion_loss * self.motion_weight
+            total_loss = music_loss
 
             self.log("val/loss", total_loss, prog_bar=True, logger=True, on_step=True, on_epoch=True, sync_dist=True)
             self.log("val/music_loss", music_loss, prog_bar=True, logger=True, on_step=True, on_epoch=True, sync_dist=True)
-            self.log("val/motion_loss", motion_loss, prog_bar=True, logger=True, on_step=True, on_epoch=True, sync_dist=True)
 
             log_dict = {}
             for k in range(len(music_loss_per_codebook)):
                 log_dict[f'val/music_ce_q{k + 1}'] = music_loss_per_codebook[k]
-                log_dict[f'val/motion_ce_q{k + 1}'] = motion_loss_per_codebook[k]
 
             self.log_dict(log_dict, prog_bar=True, logger=True, on_step=True, on_epoch=True, sync_dist=True)
 
@@ -309,56 +299,23 @@ class MusicMotionTransformer(pl.LightningModule):
 
     def prepare_text_condition(self, descriptions: tp.List[str], mode: tp.Optional[str] = None) -> ConditionTensors:
         music_description_list = []
-        motion_description_list = []
 
         for desc in descriptions:
             music_description = desc.split('<separation>')[0].strip()
-            motion_description = desc.split('<separation>')[-1].strip()
-
-            current_mode = mode if mode is not None else random.choice(['music_motion', 'music2motion', 'motion2music'])
-            if current_mode == 'music2motion':
-                music_description_list.append('')
-                motion_description_list.append(motion_description)
-            elif current_mode == 'motion2music':
-                music_description_list.append(music_description)
-                motion_description_list.append('')
-            else:
-                music_description_list.append(music_description)
-                motion_description_list.append(motion_description)
+            music_description_list.append(music_description)
 
         attributes_music = [ConditioningAttributes(text={'description': description}) for description in music_description_list]
-        attributes_motion = [ConditioningAttributes(text={'description': description}) for description in motion_description_list]
 
         attributes_music = self.model.cfg_dropout(attributes_music)
         attributes_music = self.model.att_dropout(attributes_music)
-        attributes_motion = self.model.cfg_dropout(attributes_motion)
-        attributes_motion = self.model.att_dropout(attributes_motion)
 
         # print drop out results for debug
-        print(f"{mode}: {self.model.training}, [{attributes_music[0].text['description']}]++[{attributes_motion[0].text['description']}]")
+        print(f"{mode}: {self.model.training}, [{attributes_music[0].text['description']}]")
 
         tokenized_music = self.model.condition_provider.tokenize(attributes_music, device=self.device)
         condition_tensors_music = self.model.condition_provider(tokenized_music)
-        tokenized_motion = self.model.condition_provider.tokenize(attributes_motion, device=self.device)
-        condition_tensors_motion = self.model.condition_provider(tokenized_motion)
 
-        # merge music and motion
-        music_condition_tensor = condition_tensors_music['description'][0]  #[B, L_music, D]
-        motion_condition_tensor = condition_tensors_motion['description'][0]  #[B, L_motion, D]
-        condition_tensor = torch.cat([music_condition_tensor, motion_condition_tensor], dim=1)  #[B, L_music + L_motion, D]
-
-        # construct cross-attn mask for conditions
-        music_condition_mask = condition_tensors_music['description'][1]  #[B, L_music]
-        motion_condition_mask = condition_tensors_motion['description'][1]  #[B, L_motion]
-        condition_mask = torch.zeros(
-            (music_condition_mask.shape[0], 2, music_condition_mask.shape[-1] + motion_condition_mask.shape[-1]), 
-            dtype=torch.bool, device=music_condition_mask.device)  # [B, 2, L_music+L_motion]
-        condition_mask[:, 0, :music_condition_mask.shape[-1]] = music_condition_mask.bool() 
-        condition_mask[:, 1, music_condition_mask.shape[-1]:] = motion_condition_mask.bool()
-
-        condition: ConditionTensors = {'description': (condition_tensor, condition_mask)}
-
-        return condition
+        return condition_tensors_music
 
     def generate_sample(
         self,

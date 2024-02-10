@@ -105,14 +105,6 @@ def load_mm_lm_model(
     my_model_dict = model.state_dict()
     new_dict = {k: v for k, v in pretrained_dict.items() if k in my_model_dict.keys()}
 
-    # special case: initialize first 2049 tokens in embedders with pretrained weight
-    for k, v in my_model_dict.items():
-        if k.startswith('emb.'):
-            pretrained_embedding = new_dict[k]
-            initial_embedding = my_model_dict[k]
-            initial_embedding[:pretrained_embedding.shape[0]] = pretrained_embedding
-            new_dict[k] = initial_embedding
-
     my_model_dict.update(new_dict)
 
     model.load_state_dict(my_model_dict)

@@ -106,15 +106,11 @@ class LMModel(StreamingModule):
         self.condition_provider = condition_provider
         self.fuser = fuser
         self.card = card
-        embed_dim = self.card + 2  # one special token for music, and one for motion
+        embed_dim = self.card + 1  # one special token for music, and one for motion
         self.n_q = n_q
         self.dim = dim
         self.pattern_provider = pattern_provider
         self.two_step_cfg = two_step_cfg
-
-        # zero-initialized embeddings for music and motion modality
-        self.music_token_emb = nn.Parameter(torch.zeros(dim))
-        self.motion_token_emb = nn.Parameter(torch.zeros(dim))
 
         self.emb = nn.ModuleList([ScaledEmbedding(embed_dim, dim, lr=emb_lr) for _ in range(n_q)])
 
@@ -130,8 +126,6 @@ class LMModel(StreamingModule):
 
         # classification head for music
         self.linears = nn.ModuleList([nn.Linear(dim, self.card, bias=bias_proj) for _ in range(n_q)])
-        # classification head for motion
-        self.motion_linears = nn.ModuleList([nn.Linear(dim, self.card, bias=bias_proj) for _ in range(n_q)])
 
         self._init_weights(weight_init, depthwise_init, zero_bias_init)
         self._fsdp: tp.Optional[nn.Module]
@@ -162,16 +156,9 @@ class LMModel(StreamingModule):
         for linear in self.linears:
             init_layer(linear, method=weight_init, init_depth=None, zero_bias_init=zero_bias_init)
 
-        for linear in self.motion_linears:
-            init_layer(linear, method=weight_init, init_depth=None, zero_bias_init=zero_bias_init)
-
     @property
-    def music_special_token_id(self) -> int:
+    def special_token_id(self) -> int:
         return self.card
-
-    @property
-    def motion_special_token_id(self) -> int:
-        return self.card + 1
 
     @property
     def num_codebooks(self) -> int:
@@ -203,10 +190,6 @@ class LMModel(StreamingModule):
         else:
             assert not conditions, "Shouldn't pass both conditions and condition_tensors."
 
-        # add music and motion embedding
-        input_[:, :S // 2] += self.music_token_emb
-        input_[:, S // 2:] += self.motion_token_emb
-
         input_, cross_attention_input = self.fuser(input_, condition_tensors)
 
         out = self.transformer(
@@ -220,14 +203,12 @@ class LMModel(StreamingModule):
             return out  # [B, S, dim]
 
         music_logits = torch.stack([self.linears[k](out[:, :S // 2]) for k in range(K)], dim=1)  # [B, K, S/2, card]
-        motion_logits = torch.stack([self.motion_linears[k](out[:, S // 2:]) for k in range(K)], dim=1)   # [B, K, S/2, card]
 
         # remove the prefix from the model outputs
         if len(self.fuser.fuse2cond['prepend']) > 0:
             music_logits = music_logits[:, :, -S:]
-            motion_logits = motion_logits[:, :, -S:]
 
-        return music_logits, motion_logits
+        return music_logits
 
     def compute_predictions(
         self,
@@ -239,51 +220,38 @@ class LMModel(StreamingModule):
     ) -> tp.Tuple[LMOutput, LMOutput]:
         # prepare input sequence
         B, K, T_music = music_codes.shape
-        T_motion = motion_codes.shape[-1]
-        assert T_music == T_motion
         music_codes = music_codes.contiguous()
-        motion_codes = motion_codes.contiguous()
 
         # map codes [B, K, T] into pattern sequence [B, K, S] using special_token_id for masked tokens
         music_pattern = self.pattern_provider.get_pattern(T_music)
-        motion_pattern = self.pattern_provider.get_pattern(T_motion)
         music_sequence_codes, _, _ = music_pattern.build_pattern_sequence(
             music_codes, self.music_special_token_id, keep_only_valid_steps=True
         )
-        motion_sequence_codes, _, _ = motion_pattern.build_pattern_sequence(
-            motion_codes, self.motion_special_token_id, keep_only_valid_steps=True
-        )
 
         # concat music sequence and motion sequence in time dimension
-        sequence_codes = torch.cat((music_sequence_codes, motion_sequence_codes), dim=-1)
+        sequence_codes = music_sequence_codes
 
         # prepare self-attention mask
-        self_attn_mask = self.get_self_attn_mask(music_sequence_codes.shape[-1], motion_sequence_codes.shape[-1], mode)
+        self_attn_mask = self.get_self_attn_mask(music_sequence_codes.shape[-1], music_sequence_codes.shape[-1], mode)
         # get cross-attention mask
         cross_attn_mask = torch.where(condition_tensors['description'][-1], 0., float('-inf'))
 
         # apply model on pattern sequence
-        music_logits, motion_logits = self(
+        music_logits = self(
             sequence_codes, conditions, src_mask=self_attn_mask, condition_tensors=condition_tensors, cross_attn_mask=cross_attn_mask
         )  # both [B, K, S, card]
 
         # map back the logits on pattern sequence to logits on original codes: [B, K, S, card] -> [B, K, T, card]
         # and provide the corresponding mask over invalid positions of tokens
         music_logits = music_logits.permute(0, 3, 1, 2)  # [B, card, K, S]
-        motion_logits = motion_logits.permute(0, 3, 1, 2)
         # note: we use nans as special token to make it obvious if we feed unexpected logits
         music_logits, _, music_logits_mask = music_pattern.revert_pattern_logits(
             music_logits, float('nan'), keep_only_valid_steps=True
         )
-        motion_logits, _, motion_logits_mask = motion_pattern.revert_pattern_logits(
-            motion_logits, float('nan'), keep_only_valid_steps=True
-        )
         music_logits = music_logits.permute(0, 2, 3, 1)  # [B, K, T, card]
         music_logits_mask = music_logits_mask[None, :, :].expand(B, -1, -1)  # [K, T] -> [B, K, T]
-        motion_logits = motion_logits.permute(0, 2, 3, 1)  # [B, K, T, card]
-        motion_logits_mask = motion_logits_mask[None, :, :].expand(B, -1, -1)  # [K, T] -> [B, K, T]
 
-        return LMOutput(music_logits, music_logits_mask), LMOutput(motion_logits, motion_logits_mask)
+        return LMOutput(music_logits, music_logits_mask), None
 
     def get_music_motion_context(
         self,
@@ -329,12 +297,9 @@ class LMModel(StreamingModule):
 
     def get_self_attn_mask(self, section_1: int, section_2: int, mode: str) -> torch.Tensor:
         device = next(iter(self.parameters())).device
-        mask = torch.zeros((section_1 + section_2, section_1 + section_2), dtype=torch.bool, device=device)
+        mask = torch.zeros((section_1, section_1), dtype=torch.bool, device=device)
 
         mask[:section_1, :section_1] = ~torch.ones((section_1, section_1), dtype=torch.bool, device=device).triu(1)
-        mask[section_1:section_1 + section_2, :section_1] = ~torch.ones((section_2, section_1), dtype=torch.bool, device=device).triu(1)
-        mask[:section_1, section_1:section_1 + section_2] = ~torch.ones((section_1, section_2), dtype=torch.bool, device=device).triu(1)
-        mask[section_1:section_1 + section_2, section_1:section_1 + section_2] = ~torch.ones((section_2, section_2), dtype=torch.bool, device=device).triu(1)
 
         # if mode == 'music2motion':
         #     mask[section_1:section_1 + section_2, :section_1] = True
@@ -363,9 +328,9 @@ class LMModel(StreamingModule):
         B = music_sequence.shape[0]
         cfg_coef = self.cfg_coef if cfg_coef is None else cfg_coef
 
-        sequence = torch.cat((music_sequence, motion_sequence), dim=-1)
+        sequence = music_sequence
         # get self-attn mask
-        src_mask = self.get_self_attn_mask(music_sequence.shape[-1], motion_sequence.shape[-1], mode=mode)
+        src_mask = self.get_self_attn_mask(music_sequence.shape[-1], music_sequence.shape[-1], mode=mode)
         # get cross-attention mask
         cross_attn_mask = torch.where(cfg_conditions['description'][-1], 0., float('-inf'))
 
@@ -375,18 +340,15 @@ class LMModel(StreamingModule):
             # Preparing for CFG, predicting both conditional and unconditional logits.
             sequence = torch.cat([sequence, sequence], dim=0)
 
-        music_all_logits, motion_all_logits = self(
+        music_all_logits = self(
             sequence, conditions=[], condition_tensors=condition_tensors, src_mask=src_mask, cross_attn_mask=cross_attn_mask
         )
 
         if condition_tensors:
             music_cond_logits, music_uncond_logits = music_all_logits.split(B, dim=0)  # [B, K, T, card]
-            motion_cond_logits, motion_uncond_logits = motion_all_logits.split(B, dim=0)  # [B, K, T, card]
             music_logits = music_uncond_logits + (music_cond_logits - music_uncond_logits) * cfg_coef
-            motion_logits = motion_uncond_logits + (motion_cond_logits - motion_uncond_logits) * cfg_coef
         else:
             music_logits = music_all_logits
-            motion_logits = motion_all_logits
 
         # sample music tokne
         music_logits = music_logits.permute(0, 1, 3, 2)  # [B, K, card, T]
@@ -403,22 +365,7 @@ class LMModel(StreamingModule):
         else:
             music_next_token = torch.argmax(music_logits, dim=-1, keepdim=True)
 
-        # sample music tokne
-        motion_logits = motion_logits.permute(0, 1, 3, 2)  # [B, K, card, T]
-        motion_logits = motion_logits[..., -1]  # [B, K, card]
-        # Apply softmax for sampling if temp > 0. Else, do greedy sampling to avoid zero division error.
-        if use_sampling and temp > 0.0:
-            probs = torch.softmax(motion_logits / temp, dim=-1)
-            if top_p > 0.0:
-                motion_next_token = utils.sample_top_p(probs, p=top_p)
-            elif top_k > 0:
-                motion_next_token = utils.sample_top_k(probs, k=top_k)
-            else:
-                motion_next_token = utils.multinomial(probs, num_samples=1)
-        else:
-            motion_next_token = torch.argmax(motion_logits, dim=-1, keepdim=True)
-
-        return music_next_token, motion_next_token
+        return music_next_token
 
     @torch.no_grad()
     def generate(
@@ -444,40 +391,19 @@ class LMModel(StreamingModule):
         assert music_code is None or motion_code is None, "cannot provide both music and motion code."
 
         # half the condition is music, half is motion
-        num_samples = len(conditions) // 2
+        num_samples = len(conditions)
         assert num_samples > 0
 
         # get classifier-free guidance conditions
         cfg_conditions: CFGConditions
         if conditions:
             music_conditions = conditions[:num_samples]
-            motion_conditions = conditions[num_samples:]
             null_conditions = ClassifierFreeGuidanceDropout(p=1.0)(conditions)
             null_music_conditions = null_conditions[:num_samples]
-            null_motion_conditions = null_conditions[num_samples:]
             music_conditions = music_conditions + null_music_conditions
-            motion_conditions = motion_conditions + null_motion_conditions
 
             tokenized_music = self.condition_provider.tokenize(music_conditions, device)
-            condition_tensor_music = self.condition_provider(tokenized_music)
-            tokenized_motion = self.condition_provider.tokenize(motion_conditions, device)
-            condition_tensor_motion = self.condition_provider(tokenized_motion)
-
-            # merge music and motion conditions
-            condition_tensor = torch.cat([
-                condition_tensor_music['description'][0], condition_tensor_motion['description'][0]
-            ], dim=1)  # [B*2, L_music+L_motion, D]
-            # construct cross-attn mask for conditions
-            condition_mask = torch.zeros(
-                (condition_tensor.shape[0], 2, condition_tensor.shape[-2]),
-                dtype=torch.bool, device=device
-            )  # [B*2, 2, L_music+L_motion]
-            music_condition_mask = condition_tensor_music['description'][1]  # [B*2, L_music]
-            motion_condition_mask = condition_tensor_motion['description'][1]  # [B*2, L_motion]
-            condition_mask[:, 0, :music_condition_mask.shape[-1]] = music_condition_mask.bool()
-            condition_mask[:, 1, music_condition_mask.shape[-1]:] = motion_condition_mask.bool()
-
-            cfg_conditions = {'description': (condition_tensor, condition_mask)}
+            cfg_conditions = self.condition_provider(tokenized_music)
         else:
             cfg_conditions = {}
 
@@ -492,40 +418,28 @@ class LMModel(StreamingModule):
             music_gen_codes = torch.full((B, K, max_gen_len), unknown_token, dtype=torch.long, device=device)
         else:
             music_gen_codes = music_code
-        if motion_code is None:
-            motion_gen_codes = torch.full((B, K, max_gen_len), unknown_token, dtype=torch.long, device=device)
-        else:
-            motion_gen_codes = motion_code
-        assert music_gen_codes.shape[-1] == motion_gen_codes.shape[-1], "music code and motion code should be in equal time dimension"
         # create the gen_sequence with proper interleaving from the pattern: [B, K, S]
         music_gen_sequence, _, music_mask = pattern.build_pattern_sequence(music_gen_codes, self.music_special_token_id)   # gen_sequence: padded with self.music_special_token_id
-        motion_gen_sequence, _, motion_mask = pattern.build_pattern_sequence(motion_gen_codes, self.motion_special_token_id)   # gen_sequence: padded with self.motion_special_token_id
 
         gen_sequence_len = music_gen_sequence.shape[-1]  # gen_sequence shape is [B, K, S]
         for offset in tqdm(range(1, gen_sequence_len), desc=f"Generating music & motion of shape {music_gen_sequence.shape}"):
             # get current sequence
             music_curr_sequence = music_gen_sequence[..., 0:offset]
             music_curr_mask = music_mask[None, ..., 0:offset].expand(B, -1, -1)
-            motion_curr_sequence = motion_gen_sequence[..., 0:offset]
-            motion_curr_mask = motion_mask[None, ..., 0:offset].expand(B, -1, -1)
             if check:
                 # check coherence between mask and sequence
                 assert (music_curr_sequence == torch.where(music_curr_mask, music_curr_sequence, self.music_special_token_id)).all()
-                assert (motion_curr_sequence == torch.where(motion_curr_mask, motion_curr_sequence, self.motion_special_token_id)).all()
                 # should never happen as gen_sequence is filled progressively
                 assert not (music_curr_sequence == unknown_token).any()
-                assert not (motion_curr_sequence == unknown_token).any()
             # sample next token from the model, next token shape is [B, K, 1]
-            music_next_token, motion_next_token = self._sample_next_token(
-                music_curr_sequence, motion_curr_sequence, cfg_conditions, mode, use_sampling,
+            music_next_token = self._sample_next_token(
+                music_curr_sequence, None, cfg_conditions, mode, use_sampling,
                 temp, top_k, top_p, cfg_coef=cfg_coef
             )
             # ensure the tokens that should be masked are properly set to special_token_id
             # as the model never output special_token_id
             music_valid_mask = music_mask[..., offset:offset+1].expand(B, -1, -1)
             music_next_token[~music_valid_mask] = self.music_special_token_id
-            motion_valid_mask = motion_mask[..., offset:offset + 1].expand(B, -1, -1)
-            motion_next_token[~motion_valid_mask] = self.motion_special_token_id
             # We only write over unknown tokens
             # i.e., update the prediction if they are not provided
             if music_code is None:
@@ -533,37 +447,23 @@ class LMModel(StreamingModule):
                     music_gen_sequence[..., offset:offset+1] == unknown_token,
                     music_next_token, music_gen_sequence[..., offset:offset+1]
                 )
-            if motion_code is None:
-                motion_gen_sequence[..., offset:offset + 1] = torch.where(
-                    motion_gen_sequence[..., offset:offset + 1] == unknown_token,
-                    motion_next_token, motion_gen_sequence[..., offset:offset + 1]
-                )
 
         # ensure sequence has been entirely filled
         assert not (music_gen_sequence == unknown_token).any()
-        assert not (motion_gen_sequence == unknown_token).any()
         # ensure gen_sequence pattern and mask are matching
         # which means the gen_sequence is valid according to the pattern
         assert (
             music_gen_sequence == torch.where(music_mask[None, ...].expand(B, -1, -1), music_gen_sequence,
                                               self.music_special_token_id)).all()
-        assert (
-            motion_gen_sequence == torch.where(motion_mask[None, ...].expand(B, -1, -1), motion_gen_sequence,
-                                               self.motion_special_token_id)).all()
         # get back the codes, trimming the prompt if needed and cutting potentially incomplete timesteps
         music_out_codes, out_indexes, music_out_mask = pattern.revert_pattern_sequence(music_gen_sequence, special_token=unknown_token)
-        motion_out_codes, out_indexes, motion_out_mask = pattern.revert_pattern_sequence(motion_gen_sequence, special_token=unknown_token)
 
         # sanity checks over the returned codes and corresponding masks
         assert (music_out_codes[..., :max_gen_len] != unknown_token).all()
         assert (music_out_mask[..., :max_gen_len] == 1).all()
-        assert (motion_out_codes[..., :max_gen_len] != unknown_token).all()
-        assert (motion_out_mask[..., :max_gen_len] == 1).all()
 
         music_out_codes = music_out_codes[..., 0:max_gen_len]
-        motion_out_codes = motion_out_codes[..., 0:max_gen_len]
 
         # ensure the returned codes are all valid
         assert (music_out_codes >= 0).all() and (music_out_codes <= self.card).all()
-        assert (motion_out_codes >= 0).all() and (motion_out_codes <= self.card).all()
-        return music_out_codes, motion_out_codes
+        return music_out_codes, music_out_codes

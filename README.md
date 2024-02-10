@@ -1,3 +1,3 @@
 
-# Attempt 10: Only differs from main in conditioning
-Branch from attempt9, and remove mixture of expert.
+# Attempt 10: Finetune musicgen
+This branch removes motion part, and only generate music
