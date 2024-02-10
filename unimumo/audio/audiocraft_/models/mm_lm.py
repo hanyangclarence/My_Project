@@ -333,7 +333,7 @@ class LMModel(StreamingModule):
         # get self-attn mask
         src_mask = self.get_self_attn_mask(music_sequence.shape[-1], music_sequence.shape[-1], mode=mode)
         # get cross-attention mask
-        cross_attn_mask = torch.where(cfg_conditions['description'][-1], 0., float('-inf'))
+        cross_attn_mask = torch.where(cfg_conditions['description'][-1] == 1, 0., float('-inf'))
 
         assert isinstance(cfg_conditions, dict)
         condition_tensors = cfg_conditions
