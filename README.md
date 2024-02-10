@@ -1,8 +1,8 @@
 # Running:
-4.3; 6.1; 
+4.3; 6.1; 11
 
 # Testing:
-9
+10, 11
 
 # TODO:
 1, separate music and motion conditioning: doing on attempt9
