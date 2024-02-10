@@ -225,7 +225,7 @@ class LMModel(StreamingModule):
         # map codes [B, K, T] into pattern sequence [B, K, S] using special_token_id for masked tokens
         music_pattern = self.pattern_provider.get_pattern(T_music)
         music_sequence_codes, _, _ = music_pattern.build_pattern_sequence(
-            music_codes, self.music_special_token_id, keep_only_valid_steps=True
+            music_codes, self.special_token_id, keep_only_valid_steps=True
         )
 
         # concat music sequence and motion sequence in time dimension
@@ -271,7 +271,7 @@ class LMModel(StreamingModule):
         music_pattern = self.pattern_provider.get_pattern(T_music)
         motion_pattern = self.pattern_provider.get_pattern(T_motion)
         music_sequence_codes, _, _ = music_pattern.build_pattern_sequence(
-            music_codes, self.music_special_token_id, keep_only_valid_steps=True
+            music_codes, self.special_token_id, keep_only_valid_steps=True
         )
         motion_sequence_codes, _, _ = motion_pattern.build_pattern_sequence(
             motion_codes, self.motion_special_token_id, keep_only_valid_steps=True
@@ -419,7 +419,7 @@ class LMModel(StreamingModule):
         else:
             music_gen_codes = music_code
         # create the gen_sequence with proper interleaving from the pattern: [B, K, S]
-        music_gen_sequence, _, music_mask = pattern.build_pattern_sequence(music_gen_codes, self.music_special_token_id)   # gen_sequence: padded with self.music_special_token_id
+        music_gen_sequence, _, music_mask = pattern.build_pattern_sequence(music_gen_codes, self.special_token_id)   # gen_sequence: padded with self.music_special_token_id
 
         gen_sequence_len = music_gen_sequence.shape[-1]  # gen_sequence shape is [B, K, S]
         for offset in tqdm(range(1, gen_sequence_len), desc=f"Generating music & motion of shape {music_gen_sequence.shape}"):
@@ -428,7 +428,7 @@ class LMModel(StreamingModule):
             music_curr_mask = music_mask[None, ..., 0:offset].expand(B, -1, -1)
             if check:
                 # check coherence between mask and sequence
-                assert (music_curr_sequence == torch.where(music_curr_mask, music_curr_sequence, self.music_special_token_id)).all()
+                assert (music_curr_sequence == torch.where(music_curr_mask, music_curr_sequence, self.special_token_id)).all()
                 # should never happen as gen_sequence is filled progressively
                 assert not (music_curr_sequence == unknown_token).any()
             # sample next token from the model, next token shape is [B, K, 1]
@@ -439,7 +439,7 @@ class LMModel(StreamingModule):
             # ensure the tokens that should be masked are properly set to special_token_id
             # as the model never output special_token_id
             music_valid_mask = music_mask[..., offset:offset+1].expand(B, -1, -1)
-            music_next_token[~music_valid_mask] = self.music_special_token_id
+            music_next_token[~music_valid_mask] = self.special_token_id
             # We only write over unknown tokens
             # i.e., update the prediction if they are not provided
             if music_code is None:
@@ -454,7 +454,7 @@ class LMModel(StreamingModule):
         # which means the gen_sequence is valid according to the pattern
         assert (
             music_gen_sequence == torch.where(music_mask[None, ...].expand(B, -1, -1), music_gen_sequence,
-                                              self.music_special_token_id)).all()
+                                              self.special_token_id)).all()
         # get back the codes, trimming the prompt if needed and cutting potentially incomplete timesteps
         music_out_codes, out_indexes, music_out_mask = pattern.revert_pattern_sequence(music_gen_sequence, special_token=unknown_token)
 
