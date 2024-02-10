@@ -193,7 +193,7 @@ class LMModel(StreamingModule):
         input_, cross_attention_input = self.fuser(input_, condition_tensors)
 
         out = self.transformer(
-            input_, separate_positional_encoding=True, cross_attention_src=cross_attention_input, src_mask=src_mask,
+            input_, separate_positional_encoding=False, cross_attention_src=cross_attention_input, src_mask=src_mask,
             cross_attn_mask=cross_attn_mask
         )
         if self.out_norm:
