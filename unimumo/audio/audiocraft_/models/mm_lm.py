@@ -202,7 +202,7 @@ class LMModel(StreamingModule):
         if return_last_layer:
             return out  # [B, S, dim]
 
-        music_logits = torch.stack([self.linears[k](out[:, :S // 2]) for k in range(K)], dim=1)  # [B, K, S/2, card]
+        music_logits = torch.stack([self.linears[k](out) for k in range(K)], dim=1)  # [B, K, S/2, card]
 
         # remove the prefix from the model outputs
         if len(self.fuser.fuse2cond['prepend']) > 0:
@@ -392,7 +392,7 @@ class LMModel(StreamingModule):
         assert music_code is None or motion_code is None, "cannot provide both music and motion code."
 
         # half the condition is music, half is motion
-        num_samples = len(conditions)
+        num_samples = len(conditions) // 2
         assert num_samples > 0
 
         # get classifier-free guidance conditions

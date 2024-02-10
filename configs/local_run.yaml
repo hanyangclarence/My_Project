@@ -32,7 +32,7 @@ model:
     text_model_config:
       target: unimumo.models.text_generation_model.TextGenerator
       params:
-        model: 't5-small'
+        model: '/home/hanyang/.cache/huggingface/hub/models--t5-small/snapshots/df1b051c49625cf57a3d0d8d3863ed4d13564fe4'
         max_length: 64
         context_dim: 1024
         self_dim: 512
@@ -85,7 +85,7 @@ lightning:
         sr: 32000
         motion_fps: 60
         max_video_logged: 120
-        disabled: false
+        disabled: true
   trainer:
     benchmark: True
     devices: 1

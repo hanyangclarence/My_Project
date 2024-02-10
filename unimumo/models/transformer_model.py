@@ -397,7 +397,7 @@ class MusicMotionTransformer(pl.LightningModule):
             music_description = desc.split('<separation>')[0].strip()
             motion_description = desc.split('<separation>')[-1].strip()
 
-            current_mode = mode if mode is not None else random.choice(['music_motion', 'music2motion', 'motion2music'])
+            current_mode = 'music_motion'
             if current_mode == 'music2motion':
                 music_description_list.append('')
                 motion_description_list.append(motion_description)
