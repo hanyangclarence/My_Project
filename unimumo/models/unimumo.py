@@ -76,7 +76,7 @@ class UniMuMo(nn.Module):
         waveform = self.music_vqvae.decode(music_gen)
         waveform = waveform.cpu().squeeze(1).numpy()  # [b, 32000 * duration]
 
-        motion_feature = self.motion_vqvae.decode_from_code(music_gen, motion_gen)  # [b, fps * duration, 263]
+        motion_feature = self.motion_vqvae.decode_from_code(motion_gen)  # [b, fps * duration, 263]
         motion_joint = self.motion_vec_to_joint(motion_feature)  # [b, fps * duration, 22, 3]
         motion_feature = motion_feature.cpu().numpy()
         motion_feature = self.denormalize_motion(motion_feature)
@@ -101,10 +101,7 @@ class UniMuMo(nn.Module):
 
         motion = torch.FloatTensor(self.normalize_motion(motion_feature)).to(device)
 
-        # create zero waveform tensor of the same duration for joint encoding
-        empty_waveform = torch.zeros((batch_size, 1, target_motion_length * 32000 // self.motion_fps)).to(device)
-
-        _, motion_emb = self.motion_vqvae.encode(x_music=empty_waveform, x_motion=motion)
+        motion_emb = self.motion_vqvae.encode(x_motion=motion)
         return self.motion_vqvae.quantizer.encode(motion_emb).contiguous()
 
     @torch.no_grad()

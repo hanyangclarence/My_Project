@@ -244,8 +244,8 @@ class MusicMotionLogger(Callback):
                     motion_vqvae.to(pl_module.device)
                     generated_music = music_vqvae.decode(music_gen)
                     ref_music = music_vqvae.decode(music_ref)
-                    generated_motion = motion_vqvae.decode_from_code(music_gen, motion_gen)
-                    ref_motion = motion_vqvae.decode_from_code(music_ref, motion_ref)
+                    generated_motion = motion_vqvae.decode_from_code(motion_gen)
+                    ref_motion = motion_vqvae.decode_from_code(motion_ref)
                 generated_joint = self.motion_vec_to_joint(generated_motion)
                 ref_joint = self.motion_vec_to_joint(ref_motion)
 
@@ -285,7 +285,7 @@ class MusicMotionLogger(Callback):
                     motion_vqvae.to(pl_module.device)
 
                     ref_music = music_vqvae.decode(music_ref)
-                    ref_motion = motion_vqvae.decode_from_code(music_ref, motion_ref)
+                    ref_motion = motion_vqvae.decode_from_code(motion_ref)
                     ref_joint = self.motion_vec_to_joint(ref_motion)
 
                 self.log_video_with_caption(
