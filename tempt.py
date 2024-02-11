@@ -18,6 +18,7 @@ import typing as tp
 from einops import rearrange
 import torch
 import torch.nn as nn
+from torch import Tensor
 from torch.nn import functional as F
 from torch.utils.checkpoint import checkpoint as torch_checkpoint
 import math
@@ -560,6 +561,12 @@ class StreamingTransformerLayer(nn.TransformerEncoderLayer):
         self.norm1 = create_norm_fn(norm, d_model, **factory_kwargs)  # type: ignore
         self.norm2 = create_norm_fn(norm, d_model, **factory_kwargs)  # type: ignore
 
+        # Add new MLP for motion
+        self.linear1_motion = nn.Linear(d_model, dim_feedforward, bias=bias_ff, **factory_kwargs)
+        self.linear2_motion = nn.Linear(dim_feedforward, d_model, bias=bias_ff, **factory_kwargs)
+        self.norm1_motion = create_norm_fn(norm, d_model, **factory_kwargs)
+        self.norm2_motion = create_norm_fn(norm, d_model, **factory_kwargs)
+
     def _cross_attention_block(self, src: torch.Tensor,
                                cross_attention_src: torch.Tensor) -> torch.Tensor:
         assert self.cross_attention is not None
@@ -567,6 +574,11 @@ class StreamingTransformerLayer(nn.TransformerEncoderLayer):
         x = self.cross_attention(
             src, cross_attention_src, cross_attention_src, need_weights=False)[0]
         return self.dropout_cross(x)  # type: ignore
+
+    # feed forward block for motion mlp
+    def _ff_block_motion(self, x: Tensor) -> Tensor:
+        x = self.linear2_motion(self.dropout(self.activation(self.linear1_motion(x))))
+        return self.dropout2(x)
 
     def forward(self, src: torch.Tensor, src_mask: tp.Optional[torch.Tensor] = None,  # type: ignore
                 src_key_padding_mask: tp.Optional[torch.Tensor] = None,
@@ -576,6 +588,7 @@ class StreamingTransformerLayer(nn.TransformerEncoderLayer):
         else:
             assert cross_attention_src is not None
         x = src
+        S = x.shape[1]
         if self.norm_first:
             x = x + self.layer_scale_1(
                 self._sa_block(self.norm1(x), src_mask, src_key_padding_mask))
@@ -583,7 +596,11 @@ class StreamingTransformerLayer(nn.TransformerEncoderLayer):
                 x = x + self.layer_scale_cross(
                     self._cross_attention_block(
                         self.norm_cross(x), cross_attention_src))
-            x = x + self.layer_scale_2(self._ff_block(self.norm2(x)))
+            x_music = x[:, :S//2]
+            x_motion = x[:, S//2:]
+            x_music = x_music + self.layer_scale_2(self._ff_block(self.norm2(x_music)))
+            x_motion = x_motion + self.layer_scale_2(self._ff_block_motion(self.norm2_motion(x_motion)))
+            x = torch.cat((x_music, x_motion), dim=1)
         else:
             x = self.norm1(x + self.layer_scale_1(
                 self._sa_block(x, src_mask, src_key_padding_mask)))
@@ -591,7 +608,11 @@ class StreamingTransformerLayer(nn.TransformerEncoderLayer):
                 x = self.norm_cross(
                     x + self.layer_scale_cross(
                         self._cross_attention_block(src, cross_attention_src)))
-            x = self.norm2(x + self.layer_scale_2(self._ff_block(x)))
+            x_music = x[:, :S // 2]
+            x_motion = x[:, S // 2:]
+            x_music = self.norm2(x_music + self.layer_scale_2(self._ff_block(x_music)))
+            x_motion = self.norm2_motion(x_motion + self.layer_scale_2(self._ff_block_motion(x_motion)))
+            x = torch.cat((x_music, x_motion), dim=1)
         return x
 
 
