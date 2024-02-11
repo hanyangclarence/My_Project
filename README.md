@@ -1,8 +1,8 @@
 # Running:
-4.3; 6.1; 11, 1(get motion code)
+4.3; 6.1; 1(get motion code), 10 (seed 42)
 
 # Testing:
-10, 11
+10
 
 # TODO:
 1, separate music and motion conditioning: doing on attempt9
