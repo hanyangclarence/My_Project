@@ -48,7 +48,7 @@ model:
 data:
   target: train.DataModuleFromConfig
   params:
-    batch_size: 3
+    batch_size: 2
     wrap: True
     num_workers: 4
     train:
@@ -59,7 +59,7 @@ data:
         motion_meta_dir: 'data/motion'
         music_code_dir: 'data/music/music4all_codes'
         motion_code_dir: 'data/motion/aligned_motion_code_music4all_60hz'
-        duration: 10
+        duration: 5
         dropout_prob: 0.6
         vqvae_sr: 32000
         natural_language_caption_ratio: 1.0
@@ -72,7 +72,7 @@ data:
         motion_meta_dir: 'data/motion'
         music_code_dir: 'data/music/music4all_codes'
         motion_code_dir: 'data/motion/aligned_motion_code_music4all_60hz'
-        duration: 10
+        duration: 5
         dropout_prob: 0.6
         vqvae_sr: 32000
         natural_language_caption_ratio: 1.0
