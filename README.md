@@ -1,5 +1,5 @@
 # Running:
-4.3; 6.1; 1(get motion code), 10 (seed 42), 13
+4.3; 6.1; 1(get motion code), 10 (seed 42), 13, 12
 
 # Testing:
 10
