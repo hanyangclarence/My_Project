@@ -6,6 +6,7 @@ Branch from attempt9, and remove mixture of expert.
     e12, gs4: 'frechet_distance': 43.6644, 'frechet_audio_distance': 6.4895, 'kl_sigmoid': 7.1309, 'kl_softmax': 2.0328
     e18, gs4: 'frechet_distance': 46.8459, 'frechet_audio_distance': 7.2716, 'kl_sigmoid': 6.9755, 'kl_softmax': 2.0816
     e24, gs4: 'frechet_distance': 47.4334, 'frechet_audio_distance': 6.8211, 'kl_sigmoid': 6.8692, 'kl_softmax': 2.0927
+    e30, gs4: 'frechet_distance': 44.8467, 'frechet_audio_distance': 6.9024, 'kl_sigmoid': 7.119, 'kl_softmax': 2.1225
 
     motion 5s (These seems not bad actually. But also not that good)
     e12, gs3: 'fid_k': 41.40899748706633, 'fid_m': 14.89629808770566, 'div_k': 9.558381355887937, 'div_m': 6.3849409423730314 (some jitters, but seems diverse)
