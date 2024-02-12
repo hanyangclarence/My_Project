@@ -33,6 +33,12 @@ class UniMuMo(nn.Module):
         # load motion vqvae
         # don't know why but these configs cannot be automatically filled
         # I can only manually set the value
+        motion_vqvae_config.model.params.music_config.vqvae_config = music_vqvae_config
+        motion_vqvae_config.model.params.music_config.vqvae_config.encodec.sample_rate = 32000
+        motion_vqvae_config.model.params.music_config.vqvae_config.encodec.channels = 1
+        motion_vqvae_config.model.params.music_config.vqvae_config.seanet.channels = 1
+        motion_vqvae_config.model.params.music_config.vqvae_config.seanet.causal = \
+            motion_vqvae_config.model.params.music_config.vqvae_config.encodec.causal
         self.motion_vqvae = instantiate_from_config(motion_vqvae_config.model)
         if motion_vqvae_weight is not None:
             self.motion_vqvae.load_state_dict(motion_vqvae_weight)
