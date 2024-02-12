@@ -148,7 +148,7 @@ if __name__ == "__main__":
         genre = random.choice(aist_genres)
         motion_description = f'The style of the dance is {genre}.'
 
-        text_description = music_description.capitalize() + ' <separation> ' + motion_description.capitalize()
+        text_description = '<separation> ' + motion_description.capitalize()
 
         print(f'waveform: {waveform.shape}, caption: {text_description}')
         motion_gen = model.generate_motion_from_music(
