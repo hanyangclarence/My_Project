@@ -20,3 +20,7 @@ achieve this.
     e18, gs3: 'fid_k': 7.426635893096616, 'fid_m': (20.346065855620857-2.9180680199539163e-08j), 'div_k': 8.330986392854182, 'div_m': 8.424083621071334
     e21, gs3: 'fid_k': 10.310515261638443, 'fid_m': (24.540422924567324-1.8279451559923813e-08j), 'div_k': 8.838213407794635, 'div_m': 8.300819460123014
 
+
+## Attempt 13.2: Try more motion weight
+It seems that music converges faster than motion.
+Now I change motion weight to 0.15
