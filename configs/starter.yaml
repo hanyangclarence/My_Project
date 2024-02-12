@@ -1,15 +1,15 @@
 model:
-  base_learning_rate: 5e-5
+  base_learning_rate: 1e-5
   target: unimumo.models.transformer_model.MusicMotionTransformer
   params:
     name: 'facebook/musicgen-small'
     music_key: 'music_code'
     motion_key: 'motion_code'
     text_cond_key: 'text'
-    motion_weight: 0.1
+    motion_weight: 0.5
     length_single_modal: 500
     feature_frame_rate: 50
-
+    is_pretraining: True
     monitor: "val/loss"
 
     generation_params:
@@ -48,7 +48,7 @@ model:
 data:
   target: train.DataModuleFromConfig
   params:
-    batch_size: 2
+    batch_size: 3
     wrap: True
     num_workers: 4
     train:
@@ -59,7 +59,7 @@ data:
         motion_meta_dir: 'data/motion'
         music_code_dir: 'data/music/music4all_codes'
         motion_code_dir: 'data/motion/aligned_motion_code_music4all_60hz'
-        duration: 5
+        duration: 10
         dropout_prob: 0.6
         vqvae_sr: 32000
         natural_language_caption_ratio: 1.0
@@ -72,7 +72,7 @@ data:
         motion_meta_dir: 'data/motion'
         music_code_dir: 'data/music/music4all_codes'
         motion_code_dir: 'data/motion/aligned_motion_code_music4all_60hz'
-        duration: 5
+        duration: 10
         dropout_prob: 0.6
         vqvae_sr: 32000
         natural_language_caption_ratio: 1.0

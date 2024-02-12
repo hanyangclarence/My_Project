@@ -1,807 +1,535 @@
-# Copyright (c) Meta Platforms, Inc. and affiliates.
-# All rights reserved.
-#
-# This source code is licensed under the license found in the
-# LICENSE file in the root directory of this source tree.
-
-"""
-Transformer model, with streaming support, xformer attention support
-and easy causal attention with a potentially finite receptive field.
-
-See `StreamingTransformer` for more information.
-
-Unlike regular PyTorch Transformer, we make the hard choice that batches are first.
-"""
-
-import typing as tp
-
-from einops import rearrange
-import torch
-import torch.nn as nn
-from torch import Tensor
-from torch.nn import functional as F
-from torch.utils.checkpoint import checkpoint as torch_checkpoint
+from dataclasses import dataclass
+from functools import partial
 import math
-#from xformers import ops
-from ..xformers_ import ops
+import typing as tp
+from tqdm import tqdm
 
-from .rope import RotaryEmbedding
-from .streaming import StreamingModule
+import torch
+from torch import nn
 
-_efficient_attention_backend: str = 'torch'
-
-
-def scaled_dot_product_attention(query, key, value, attn_mask=None, dropout_p=0.0, is_causal=False, scale=None) -> torch.Tensor:
-    L, S = query.size(-2), key.size(-2)
-    scale_factor = 1 / math.sqrt(query.size(-1)) if scale is None else scale
-    attn_bias = torch.zeros(L, S, dtype=query.dtype, device=query.device)
-    if is_causal:
-        assert attn_mask is None
-        temp_mask = torch.ones(L, S, dtype=torch.bool, device=query.device).tril(diagonal=0)
-        attn_bias.masked_fill_(temp_mask.logical_not(), float("-inf"))
-        attn_bias.to(query.dtype)
-
-    if attn_mask is not None:
-        assert is_causal is False
-        if attn_mask.dtype == torch.bool:
-            attn_mask.masked_fill_(attn_mask.logical_not(), float("-inf"))
-        else:
-            attn_bias += attn_mask
-
-    attn_weight = query @ key.transpose(-2, -1) * scale_factor
-    attn_weight += attn_bias
-    attn_weight = torch.softmax(attn_weight, dim=-1)
-    attn_weight = torch.dropout(attn_weight, dropout_p, train=True)
-    return attn_weight @ value
+from ..utils import utils
+from ..modules.streaming import StreamingModule
+from ..modules.transformer import StreamingTransformer, create_norm_fn
+from ..modules.conditioners import (
+    ConditionFuser,
+    ClassifierFreeGuidanceDropout,
+    AttributeDropout,
+    ConditioningProvider,
+    ConditioningAttributes,
+    ConditionType,
+)
+from ..modules.codebooks_patterns import CodebooksPatternProvider
+from ..modules.activations import get_activation_fn
 
 
-def set_efficient_attention_backend(backend: str = 'torch'):
-    # Using torch by default, it seems a bit faster on older P100 GPUs (~20% faster).
-    global _efficient_attention_backend
-    assert _efficient_attention_backend in ['xformers', 'torch']
-    _efficient_attention_backend = backend
+ConditionTensors = tp.Dict[str, ConditionType]
+CFGConditions = tp.Union[ConditionTensors, tp.Tuple[ConditionTensors, ConditionTensors]]
 
 
-def _get_attention_time_dimension(memory_efficient: bool) -> int:
-    if _efficient_attention_backend == 'torch' and memory_efficient:
-        return 2
-    else:
-        return 1
+def get_init_fn(method: str, input_dim: int, init_depth: tp.Optional[int] = None):
+    # Compute std
+    std = 1 / math.sqrt(input_dim)
+    # Rescale with depth
+    if init_depth is not None:
+        std = std / math.sqrt(2 * init_depth)
 
-
-def _is_profiled() -> bool:
-    # Return true if we are currently running with a xformers profiler activated.
-    try:
-        from xformers.profiler import profiler
-    except ImportError:
-        return False
-    return profiler._Profiler._CURRENT_PROFILER is not None
-
-
-def create_norm_fn(norm_type: str, dim: int, **kwargs) -> nn.Module:
-    """Create normalization module for transformer encoder layer.
-
-    Args:
-        norm_type (str): Normalization method.
-        dim (int): Dimension of the normalized layer.
-        **kwargs (dict): Additional parameters for normalization layer.
-    Returns:
-        nn.Module: Normalization module.
-    """
-    if norm_type == 'layer_norm':
-        return nn.LayerNorm(dim, eps=1e-5, **kwargs)
-    else:
-        raise ValueError(f"Unknown norm type: {norm_type}")
-
-
-def create_sin_embedding(positions: torch.Tensor, dim: int, max_period: float = 10000,
-                         dtype: torch.dtype = torch.float32) -> torch.Tensor:
-    """Create sinusoidal positional embedding, with shape `[B, T, C]`.
-
-    Args:
-        positions (torch.Tensor): LongTensor of positions.
-        dim (int): Dimension of the embedding.
-        max_period (float): Maximum period of the cosine/sine functions.
-        dtype (torch.dtype or str): dtype to use to generate the embedding.
-    Returns:
-        torch.Tensor: Sinusoidal positional embedding.
-    """
-    # We aim for BTC format
-    assert dim % 2 == 0
-    half_dim = dim // 2
-    positions = positions.to(dtype)
-    adim = torch.arange(half_dim, device=positions.device, dtype=dtype).view(1, 1, -1)
-    max_period_tensor = torch.full([], max_period, device=positions.device, dtype=dtype)  # avoid sync point
-    phase = positions / (max_period_tensor ** (adim / (half_dim - 1)))
-    return torch.cat([torch.cos(phase), torch.sin(phase)], dim=-1)
-
-
-def expand_repeated_kv(x: torch.Tensor, n_rep: int, memory_efficient: bool) -> torch.Tensor:
-    """torch.repeat_interleave(x, dim=2, repeats=n_rep) from xlformers."""
-    if n_rep == 1:
-        return x
-    if _efficient_attention_backend == 'torch' and memory_efficient:
-        bs, n_kv_heads, slen, head_dim = x.shape
-        return (
-            x[:, :, None, :, :]
-            .expand(bs, n_kv_heads, n_rep, slen, head_dim)
-            .reshape(bs, n_kv_heads * n_rep, slen, head_dim)
+    if method == 'gaussian':
+        return partial(
+            torch.nn.init.trunc_normal_, mean=0.0, std=std, a=-3 * std, b=3 * std
         )
+    elif method == 'uniform':
+        bound = math.sqrt(3) * std  # ensure the standard deviation is `std`
+        return partial(torch.nn.init.uniform_, a=-bound, b=bound)
     else:
-        bs, slen, n_kv_heads, head_dim = x.shape
-        return (
-            x[:, :, :, None, :]
-            .expand(bs, slen, n_kv_heads, n_rep, head_dim)
-            .reshape(bs, slen, n_kv_heads * n_rep, head_dim)
-        )
+        raise ValueError("Unsupported layer initialization method")
 
 
-class LayerScale(nn.Module):
-    """Layer scale from [Touvron et al 2021] (https://arxiv.org/pdf/2103.17239.pdf).
-    This rescales diagonally the residual outputs close to 0, with a learnt scale.
-
-    Args:
-        channels (int): Number of channels.
-        init (float): Initial scale.
-        channel_last (bool): If True, expect `[*, C]` shaped tensors, otherwise, `[*, C, T]`.
-        device (torch.device or str, optional): Device on which to initialize the module.
-        dtype (torch.dtype, optional): dtype to use to initialize the module.
-    """
-    def __init__(self, channels: int, init: float = 1e-4, channel_last: bool = True,
-                 device=None, dtype=None):
-        super().__init__()
-        self.channel_last = channel_last
-        self.scale = nn.Parameter(
-            torch.full((channels,), init,
-                       requires_grad=True, device=device, dtype=dtype))
-
-    def forward(self, x: torch.Tensor):
-        if self.channel_last:
-            return self.scale * x
+def init_layer(
+    m: nn.Module,
+    method: str,
+    init_depth: tp.Optional[int] = None,
+    zero_bias_init: bool = False
+):
+    if isinstance(m, nn.Linear):
+        init_fn = get_init_fn(method, m.in_features, init_depth=init_depth)
+        if m.weight.device.type == 'cpu' and m.weight.dtype == torch.float16:
+            weight = m.weight.float()
+            init_fn(weight)
+            m.weight.data[:] = weight.half()
         else:
-            return self.scale[:, None] * x
-
-
-class StreamingMultiheadAttention(StreamingModule):
-    """Similar to `nn.MultiheadAttention` but with support for streaming, causal evaluation.
-
-    Args:
-        embed_dim (int): Dimension to project to.
-        num_heads (int): Number of heads.
-        dropout (float): Dropout level.
-        bias (bool): Use bias in projections.
-        causal (bool): Causal mask applied automatically.
-        past_context (int, optional): Receptive field for the causal mask, infinite if None.
-        custom (bool): Use custom MHA implementation, for testing / benchmarking.
-        memory_efficient (bool): Use xformers based memory efficient attention.
-        attention_as_float32 (bool): Perform the attention as float32
-            (especially important with memory_efficient as autocast won't do this automatically).
-        rope (`RotaryEmbedding`, optional): Rope embedding to use.
-        cross_attention: Should be true when used as a cross attention.
-            All keys and values must be available at once, streaming is only for the queries.
-            Cannot be used with `causal` or `rope` (as it wouldn't make sens to
-            interpret the time steps in the keys relative to those in the queries).
-        safe_streaming (bool): Bug fix, will go away with xformers update.
-        qk_layer_norm (bool): Layer normalization applied to queries and keys before dot product.
-        kv_repeat (int): If > 1, will repeat keys and queries multiple times (need to divide num_heads).
-            This will lead to faster decoding time on A100 or other GPUs with tensorcore.
-        device (torch.device, optional): Device on which to initialize.
-        dtype (torch.dtype, optional): dtype to use.
-    """
-    def __init__(self, embed_dim: int, num_heads: int, dropout: float = 0.0, bias: bool = True,
-                 causal: bool = False, past_context: tp.Optional[int] = None, custom: bool = False,
-                 memory_efficient: bool = False, attention_as_float32: bool = False,
-                 rope: tp.Optional[RotaryEmbedding] = None, cross_attention: bool = False,
-                 safe_streaming: bool = True, qk_layer_norm: bool = False, kv_repeat: int = 1,
-                 device=None, dtype=None):
-        super().__init__()
-        factory_kwargs = {'device': device, 'dtype': dtype}
-        if past_context is not None:
-            assert causal
-
-        self.embed_dim = embed_dim
-        self.causal = causal
-        self.past_context = past_context
-        self.memory_efficient = memory_efficient
-        self.attention_as_float32 = attention_as_float32
-        self.rope = rope
-        self.cross_attention = cross_attention
-        self.safe_streaming = safe_streaming
-        self.num_heads = num_heads
-        self.dropout = dropout
-        self.kv_repeat = kv_repeat
-        if cross_attention:
-            assert not causal, "Causal cannot work with cross attention."
-            assert rope is None, "Rope cannot work with cross attention."
-
-        if memory_efficient:
-            _verify_xformers_memory_efficient_compat()
-
-        self.custom = _is_custom(custom, memory_efficient)
-        if self.custom:
-            out_dim = embed_dim
-            assert num_heads % kv_repeat == 0
-            assert not cross_attention or kv_repeat == 1
-            num_kv = num_heads // kv_repeat
-            kv_dim = (embed_dim // num_heads) * num_kv
-            out_dim += 2 * kv_dim
-            in_proj = nn.Linear(embed_dim, out_dim, bias=bias, **factory_kwargs)
-            # We try to follow the default PyTorch MHA convention, to easily compare results.
-            self.in_proj_weight = in_proj.weight
-            self.in_proj_bias = in_proj.bias
-            if bias:
-                self.in_proj_bias.data.zero_()  # Following Pytorch convention
-            self.out_proj = nn.Linear(embed_dim, embed_dim, bias=bias, **factory_kwargs)
-            if bias:
-                self.out_proj.bias.data.zero_()
+            init_fn(m.weight)
+        if zero_bias_init and m.bias is not None:
+            nn.init.constant_(m.bias, 0)
+    elif isinstance(m, nn.Embedding):
+        init_fn = get_init_fn(method, m.embedding_dim, init_depth=None)
+        if m.weight.device.type == 'cpu' and m.weight.dtype == torch.float16:
+            weight = m.weight.float()
+            init_fn(weight)
+            m.weight.data[:] = weight.half()
         else:
-            assert not qk_layer_norm
-            assert kv_repeat == 1
-            self.mha = nn.MultiheadAttention(
-                embed_dim, num_heads, dropout=dropout, bias=bias, batch_first=True,
-                **factory_kwargs)
-        self.qk_layer_norm = qk_layer_norm
-        if qk_layer_norm:
-            assert self.custom
-            assert kv_repeat == 1
-            ln_dim = embed_dim
-            self.q_layer_norm = nn.LayerNorm(ln_dim)
-            self.k_layer_norm = nn.LayerNorm(ln_dim)
-
-    def _load_from_state_dict(self, state_dict, prefix, *args, **kwargs):
-        if not self.custom:
-            # Support compat with regular MHA
-            keys = [n for n, _ in self.mha.named_parameters()]
-            for key in keys:
-                if prefix + key in state_dict:
-                    state_dict[prefix + "mha." + key] = state_dict.pop(prefix + key)
-        super()._load_from_state_dict(state_dict, prefix, *args, **kwargs)
-
-    def _get_mask(self, current_steps: int, device: torch.device, dtype: torch.dtype):
-        # Return a causal mask, accounting for potentially stored past keys/values
-        # We actually return a bias for the attention score, as this has the same
-        # convention both in the builtin MHA in Pytorch, and Xformers functions.
-        time_dim = _get_attention_time_dimension(self.memory_efficient)
-        if self.memory_efficient:
-            from ..xformers_.ops import LowerTriangularMask
-            if current_steps == 1:
-                # If we only have one step, then we do not need a mask.
-                return None
-            elif 'past_keys' in self._streaming_state:
-                raise RuntimeError("Not supported at the moment")
-            else:
-                # Then we can safely use a lower triangular mask
-                return LowerTriangularMask()
-        if self._streaming_state:
-            past_keys = self._streaming_state['past_keys']
-            past_steps = past_keys.shape[time_dim]
-        else:
-            past_steps = 0
-
-        queries_pos = torch.arange(
-            past_steps, current_steps + past_steps, device=device).view(-1, 1)
-        keys_pos = torch.arange(past_steps + current_steps, device=device).view(1, -1)
-        delta = queries_pos - keys_pos
-        valid = delta >= 0
-        if self.past_context is not None:
-            valid &= (delta <= self.past_context)
-        return torch.where(
-            valid,
-            torch.zeros([], device=device, dtype=dtype),
-            torch.full([], float('-inf'), device=device, dtype=dtype))
-
-    def _complete_kv(self, k, v):
-        time_dim = _get_attention_time_dimension(self.memory_efficient)
-        if self.cross_attention:
-            # With cross attention we assume all keys and values
-            # are already available, and streaming is with respect
-            # to the queries only.
-            return k, v
-        # Complete the key/value pair using the streaming state.
-        if self._streaming_state:
-            pk = self._streaming_state['past_keys']
-            nk = torch.cat([pk, k], dim=time_dim)
-            if v is k:
-                nv = nk
-            else:
-                pv = self._streaming_state['past_values']
-                nv = torch.cat([pv, v], dim=time_dim)
-        else:
-            nk = k
-            nv = v
-
-        assert nk.shape[time_dim] == nv.shape[time_dim]
-        offset = 0
-        if self.past_context is not None:
-            offset = max(0, nk.shape[time_dim] - self.past_context)
-        if self._is_streaming:
-            self._streaming_state['past_keys'] = nk[:, offset:]
-            if v is not k:
-                self._streaming_state['past_values'] = nv[:, offset:]
-            if 'offset' in self._streaming_state:
-                self._streaming_state['offset'] += offset
-            else:
-                self._streaming_state['offset'] = torch.tensor(0)
-        return nk, nv
-
-    def _apply_rope(self, query: torch.Tensor, key: torch.Tensor):
-        time_dim = _get_attention_time_dimension(self.memory_efficient)
-        # Apply rope embeddings to query and key tensors.
-        assert self.rope is not None
-        if 'past_keys' in self._streaming_state:
-            past_keys_offset = self._streaming_state['past_keys'].shape[1]
-        else:
-            past_keys_offset = 0
-        if 'offset' in self._streaming_state:
-            past_context_offset = int(self._streaming_state['offset'].item())
-        else:
-            past_context_offset = 0
-        streaming_offset = past_context_offset + past_keys_offset
-        return self.rope.rotate_qk(query, key, start=streaming_offset, time_dim=time_dim)
-
-    def forward(self, query: torch.Tensor, key: torch.Tensor, value: torch.Tensor,
-                key_padding_mask=None, need_weights=False, attn_mask=None,
-                average_attn_weights=True, is_causal=False):
-        if attn_mask is not None:
-            assert not self.causal, "crafted attention mask conflicts with default causal attention mask."
-        assert not is_causal, ("New param added in torch 2.0.1 not supported, "
-                               "use the causal args in the constructor.")
-
-        time_dim = _get_attention_time_dimension(self.memory_efficient)
-        if time_dim == 2:
-            layout = "b h t d"
-        else:
-            layout = "b t h d"
-        dtype = query.dtype
-        if self._is_streaming:
-            assert self.causal or self.cross_attention, \
-                "Streaming only available for causal or cross attention"
-
-        if self.causal:
-            # At the moment we specialize only for the self-attention case.
-            assert query.shape[1] == key.shape[1], "Causal only for same length query / key / value"
-            assert value.shape[1] == key.shape[1], "Causal only for same length query / key / value"
-            attn_mask = self._get_mask(query.shape[1], query.device, query.dtype)
-
-        if self.custom:
-            # custom implementation
-            assert need_weights is False
-            assert key_padding_mask is None
-            if self.cross_attention:
-                # Different queries, keys, values, we have to spit manually the weights
-                # before applying the linear.
-                dim = self.in_proj_weight.shape[0] // 3
-                if self.in_proj_bias is None:
-                    bias_q, bias_k, bias_v = None, None, None
-                else:
-                    bias_q = self.in_proj_bias[:dim]
-                    bias_k = self.in_proj_bias[dim: 2 * dim]
-                    bias_v = self.in_proj_bias[2 * dim:]
-                q = nn.functional.linear(query, self.in_proj_weight[:dim], bias_q)
-                # todo: when streaming, we could actually save k, v and check the shape actually match.
-                k = nn.functional.linear(key, self.in_proj_weight[dim: 2 * dim], bias_k)
-                v = nn.functional.linear(value, self.in_proj_weight[2 * dim:], bias_v)
-                if self.qk_layer_norm is True:
-                    q = self.q_layer_norm(q)
-                    k = self.k_layer_norm(k)
-                q, k, v = [rearrange(x, f"b t (h d) -> {layout}", h=self.num_heads) for x in [q, k, v]]
-            else:
-                if not _is_profiled():
-                    # profiling breaks that propertysomehow.
-                    assert query is key, "specialized implementation"
-                    assert value is key, "specialized implementation"
-                projected = nn.functional.linear(query, self.in_proj_weight, self.in_proj_bias)
-                if self.kv_repeat == 1:
-                    if time_dim == 2:
-                        bound_layout = "b h p t d"
-                    else:
-                        bound_layout = "b t p h d"
-                    packed = rearrange(projected, f"b t (p h d) -> {bound_layout}", p=3, h=self.num_heads)
-                    q, k, v = ops.unbind(packed, dim=2)
-                else:
-                    embed_dim = self.embed_dim
-                    per_head_dim = (embed_dim // self.num_heads)
-                    kv_heads = self.num_heads // self.kv_repeat
-                    q = projected[:, :, :embed_dim]
-                    start = embed_dim
-                    end = start + per_head_dim * kv_heads
-                    k = projected[:, :, start: end]
-                    v = projected[:, :, end:]
-                    q = rearrange(q, f"b t (h d) -> {layout}", h=self.num_heads)
-                    k = rearrange(k, f"b t (h d) -> {layout}", h=kv_heads)
-                    v = rearrange(v, f"b t (h d) -> {layout}", h=kv_heads)
-
-                if self.qk_layer_norm is True:
-                    assert self.kv_repeat == 1
-                    q, k = [rearrange(x, f"{layout} -> b t (h d)") for x in [q, k]]
-                    q = self.q_layer_norm(q)
-                    k = self.k_layer_norm(k)
-                    q, k = [rearrange(x, f"b t (h d) -> {layout}", h=self.num_heads) for x in [q, k]]
-                if self.rope:
-                    q, k = self._apply_rope(q, k)
-                k, v = self._complete_kv(k, v)
-                if self.kv_repeat > 1:
-                    k = expand_repeated_kv(k, self.kv_repeat, self.memory_efficient)
-                    v = expand_repeated_kv(v, self.kv_repeat, self.memory_efficient)
-            if self.attention_as_float32:
-                q, k, v = [x.float() for x in [q, k, v]]
-            if self.memory_efficient:
-                p = self.dropout if self.training else 0
-                if _efficient_attention_backend == 'torch':
-                    if type(attn_mask) == ops.LowerTriangularMask:
-                        x = scaled_dot_product_attention(
-                            q, k, v, is_causal=attn_mask is not None, dropout_p=p)
-                    else:
-                        x = scaled_dot_product_attention(
-                            q, k, v, attn_mask=attn_mask, is_causal=attn_mask is None, dropout_p=p)
-                else:
-                    x = ops.memory_efficient_attention(q, k, v, attn_mask, p=p)
-            else:
-                # We include the dot product as float32, for consistency
-                # with the other implementations that include that step
-                # as part of the attention. Note that when using `autocast`,
-                # the einsums would be done as bfloat16, but the softmax
-                # would be done as bfloat16, so `attention_as_float32` will
-                # extend a bit the range of operations done in float32,
-                # although this should make no difference.
-                q = q / q.shape[-1] ** 0.5
-                key_layout = layout.replace('t', 'k')
-                query_layout = layout
-                if self._is_streaming and self.safe_streaming and q.device.type == 'cuda':
-                    with torch.autocast(device_type=q.device.type, dtype=torch.float32):
-                        pre_w = torch.einsum(f"{query_layout},{key_layout}-> b h t k", q, k)
-                else:
-                    pre_w = torch.einsum(f"{query_layout},{key_layout}-> b h t k", q, k)
-                if attn_mask is not None:
-                    pre_w = pre_w + attn_mask
-                w = torch.softmax(pre_w, dim=-1)
-                w = F.dropout(w, self.dropout, training=self.training).to(v)
-                # Key and value have the same format.
-                x = torch.einsum(f"b h t k, {key_layout} -> {layout}", w, v)
-            x = x.to(dtype)
-            x = rearrange(x, f"{layout} -> b t (h d)", h=self.num_heads)
-            x = self.out_proj(x)
-        else:
-            key, value = self._complete_kv(key, value)
-            if self.attention_as_float32:
-                query, key, value = [x.float() for x in [query, key, value]]
-            x, _ = self.mha(
-                query, key, value, key_padding_mask,
-                need_weights, attn_mask, average_attn_weights)
-            x = x.to(dtype)
-
-        return x, None
+            init_fn(m.weight)
 
 
-class StreamingTransformerLayer(nn.TransformerEncoderLayer):
-    """TransformerLayer with Streaming / Causal support.
-    This also integrates cross_attention, when passing `cross_attention=True`,
-    rather than having two separate classes like in PyTorch.
-
-    Args:
-        d_model (int): Dimension of the data.
-        num_heads (int): Number of heads.
-        dim_feedforward (int): Intermediate dimension of FF module.
-        dropout (float): Dropout both for MHA and FF.
-        bias_ff (bool): Use bias for FF.
-        bias_attn (bool): Use bias for MHA.
-        causal (bool): Causal mask applied automatically.
-        past_context (int, optional): Receptive field for the causal mask, infinite if None.
-        custom (bool): Use custom MHA implementation, for testing / benchmarking.
-        memory_efficient (bool): Use xformers based memory efficient attention.
-        attention_as_float32 (bool): Perform the attention as float32
-            (especially important with memory_efficient as autocast won't do this automatically).
-        qk_layer_norm (bool): Layer normalization applied to queries and keys before dot product in attention.
-        qk_layer_norm_cross (bool): Same for the cross attention.
-        cross_attention (bool): If True, expect to get secondary input for cross-attention.
-            Cross attention will use the default MHA, as it typically won't require
-            special treatment.
-        layer_scale (float, optional): If not None, LayerScale will be used with
-            the given value as initial scale.
-        rope (`RotaryEmbedding`, optional): Rope embedding to use.
-        attention_dropout (float, optional): If not None, separate the value of the dimension dropout
-            in FFN and of the attention dropout.
-        kv_repeat (int): If > 1, will repeat keys and queries multiple times (need to divide num_heads).
-            This will lead to faster decoding time on A100 or other GPUs with tensorcore.
-        device (torch.device, optional): Device on which to initialize.
-        dtype (torch.dtype, optional): dtype to use.
-        **kwargs: See `nn.TransformerEncoderLayer`.
-    """
-    def __init__(self, d_model: int, num_heads: int, dim_feedforward: int = 2048, dropout: float = 0.1,
-                 bias_ff: bool = True, bias_attn: bool = True, causal: bool = False,
-                 past_context: tp.Optional[int] = None, custom: bool = False,
-                 memory_efficient: bool = False, attention_as_float32: bool = False,
-                 qk_layer_norm: bool = False, qk_layer_norm_cross: bool = False,
-                 cross_attention: bool = False, layer_scale: tp.Optional[float] = None,
-                 rope: tp.Optional[RotaryEmbedding] = None, attention_dropout: tp.Optional[float] = None,
-                 kv_repeat: int = 1, norm: str = 'layer_norm', device=None, dtype=None, **kwargs):
-        super().__init__(d_model, num_heads, dim_feedforward, dropout,
-                         device=device, dtype=dtype, batch_first=True, **kwargs)
-        factory_kwargs = {'device': device, 'dtype': dtype}
-        # Redefine self_attn to our streaming multi-head attention
-        attn_kwargs: tp.Dict[str, tp.Any] = {
-            'embed_dim': d_model,
-            'num_heads': num_heads,
-            'dropout': dropout if attention_dropout is None else attention_dropout,
-            'bias': bias_attn,
-            'custom': custom,
-            'memory_efficient': memory_efficient,
-            'attention_as_float32': attention_as_float32,
-        }
-        self.self_attn: StreamingMultiheadAttention = StreamingMultiheadAttention(
-            causal=causal, past_context=past_context, rope=rope, qk_layer_norm=qk_layer_norm,
-            kv_repeat=kv_repeat, **attn_kwargs, **factory_kwargs)  # type: ignore
-        # Redefine feedforward layers to expose bias parameter
-        self.linear1 = nn.Linear(d_model, dim_feedforward, bias=bias_ff, **factory_kwargs)
-        self.linear2 = nn.Linear(dim_feedforward, d_model, bias=bias_ff, **factory_kwargs)
-
-        self.layer_scale_1: nn.Module
-        self.layer_scale_2: nn.Module
-        if layer_scale is None:
-            self.layer_scale_1 = nn.Identity()
-            self.layer_scale_2 = nn.Identity()
-        else:
-            self.layer_scale_1 = LayerScale(d_model, layer_scale, **factory_kwargs)
-            self.layer_scale_2 = LayerScale(d_model, layer_scale, **factory_kwargs)
-
-        self.cross_attention: tp.Optional[nn.Module] = None
-        if cross_attention:
-            self.cross_attention = StreamingMultiheadAttention(
-                cross_attention=True, qk_layer_norm=qk_layer_norm_cross,
-                **attn_kwargs, **factory_kwargs)
-            # Norm and dropout
-            self.dropout_cross = nn.Dropout(dropout)
-            # eps value matching that used in PyTorch reference implementation.
-            self.norm_cross = nn.LayerNorm(d_model, eps=1e-5, **factory_kwargs)
-            self.layer_scale_cross: nn.Module
-            if layer_scale is None:
-                self.layer_scale_cross = nn.Identity()
-            else:
-                self.layer_scale_cross = LayerScale(d_model, layer_scale, **factory_kwargs)
-        self.norm1 = create_norm_fn(norm, d_model, **factory_kwargs)  # type: ignore
-        self.norm2 = create_norm_fn(norm, d_model, **factory_kwargs)  # type: ignore
-
-        # Add new MLP for motion
-        self.linear1_motion = nn.Linear(d_model, dim_feedforward, bias=bias_ff, **factory_kwargs)
-        self.linear2_motion = nn.Linear(dim_feedforward, d_model, bias=bias_ff, **factory_kwargs)
-        self.norm1_motion = create_norm_fn(norm, d_model, **factory_kwargs)
-        self.norm2_motion = create_norm_fn(norm, d_model, **factory_kwargs)
-
-    def _cross_attention_block(self, src: torch.Tensor,
-                               cross_attention_src: torch.Tensor) -> torch.Tensor:
-        assert self.cross_attention is not None
-        # queries are from src, keys and values from cross_attention_src.
-        x = self.cross_attention(
-            src, cross_attention_src, cross_attention_src, need_weights=False)[0]
-        return self.dropout_cross(x)  # type: ignore
-
-    # feed forward block for motion mlp
-    def _ff_block_motion(self, x: Tensor) -> Tensor:
-        x = self.linear2_motion(self.dropout(self.activation(self.linear1_motion(x))))
-        return self.dropout2(x)
-
-    def forward(self, src: torch.Tensor, src_mask: tp.Optional[torch.Tensor] = None,  # type: ignore
-                src_key_padding_mask: tp.Optional[torch.Tensor] = None,
-                cross_attention_src: tp.Optional[torch.Tensor] = None):
-        if self.cross_attention is None:
-            assert cross_attention_src is None
-        else:
-            assert cross_attention_src is not None
-        x = src
-        S = x.shape[1]
-        if self.norm_first:
-            x = x + self.layer_scale_1(
-                self._sa_block(self.norm1(x), src_mask, src_key_padding_mask))
-            if cross_attention_src is not None:
-                x = x + self.layer_scale_cross(
-                    self._cross_attention_block(
-                        self.norm_cross(x), cross_attention_src))
-            x_music = x[:, :S//2]
-            x_motion = x[:, S//2:]
-            x_music = x_music + self.layer_scale_2(self._ff_block(self.norm2(x_music)))
-            x_motion = x_motion + self.layer_scale_2(self._ff_block_motion(self.norm2_motion(x_motion)))
-            x = torch.cat((x_music, x_motion), dim=1)
-        else:
-            x = self.norm1(x + self.layer_scale_1(
-                self._sa_block(x, src_mask, src_key_padding_mask)))
-            if cross_attention_src is not None:
-                x = self.norm_cross(
-                    x + self.layer_scale_cross(
-                        self._cross_attention_block(src, cross_attention_src)))
-            x_music = x[:, :S // 2]
-            x_motion = x[:, S // 2:]
-            x_music = self.norm2(x_music + self.layer_scale_2(self._ff_block(x_music)))
-            x_motion = self.norm2_motion(x_motion + self.layer_scale_2(self._ff_block_motion(x_motion)))
-            x = torch.cat((x_music, x_motion), dim=1)
-        return x
-
-
-class StreamingTransformer(StreamingModule):
-    """Transformer with Streaming / Causal support.
-
-    Args:
-        d_model (int): Dimension of the data.
-        num_heads (int): Number of heads.
-        dim_feedforward (int): Intermediate dimension of FF module.
-        dropout (float): Dropout both for MHA and FF.
-        bias_ff (bool): Use bias for FF.
-        bias_attn (bool): Use bias for MHA.
-        causal (bool): Causal mask applied automatically.
-        past_context (int, optional): Receptive field for the causal mask, infinite if None.
-        custom (bool): Use custom MHA implementation, for testing / benchmarking.
-        memory_efficient (bool): Use xformers based memory efficient attention.
-        attention_as_float32 (bool): Perform the attention as float32
-            (especially important with memory_efficient as autocast won't do this automatically).
-        cross_attention (bool): If True, expect to get secondary input for cross-attention.
-        layer_scale (float, optional): If not None, LayerScale will be used
-            with the given value as initial scale.
-        positional_embedding (str): Positional embedding strategy (sin, rope, or sin_rope).
-        max_period (float): Maximum period of the time embedding.
-        positional_scale (float): Scale of positional embedding, set to 0 to deactivate.
-        xpos (bool): Apply xpos exponential decay to positional embedding (rope only).
-        lr (float, optional): learning rate override through the `make_optim_group` API.
-        weight_decay (float, optional): Weight_decay override through the `make_optim_group` API.
-        layer_class: (subclass of `StreamingTransformerLayer): class to use
-            to initialize the layers, allowing further customization outside of AudioCraft.
-        checkpointing (str): Checkpointing strategy to reduce memory usage.
-            No checkpointing if set to 'none'. Per layer checkpointing using PyTorch
-            if set to 'torch' (entire layer checkpointed, i.e. linears are evaluated twice,
-            minimal memory usage, but maximal runtime). Finally, `xformers_default` provide
-            a policy for opting-out some operations of the checkpointing like
-            linear layers and attention, providing a middle ground between speed and memory.
-        device (torch.device, optional): Device on which to initialize.
-        dtype (torch.dtype, optional): dtype to use.
-        **kwargs: See `nn.TransformerEncoderLayer`.
-    """
-    def __init__(self, d_model: int, num_heads: int, num_layers: int, dim_feedforward: int = 2048,
-                 dropout: float = 0.1, bias_ff: bool = True, bias_attn: bool = True,
-                 causal: bool = False, past_context: tp.Optional[int] = None,
-                 custom: bool = False, memory_efficient: bool = False, attention_as_float32: bool = False,
-                 cross_attention: bool = False, layer_scale: tp.Optional[float] = None,
-                 positional_embedding: str = 'sin', max_period: float = 10_000, positional_scale: float = 1.,
-                 xpos: bool = False, lr: tp.Optional[float] = None, weight_decay: tp.Optional[float] = None,
-                 layer_class: tp.Type[StreamingTransformerLayer] = StreamingTransformerLayer,
-                 checkpointing: str = 'none', device=None, dtype=None, **kwargs):
-        super().__init__()
-        assert d_model % num_heads == 0
-
-        self.positional_embedding = positional_embedding
-        self.max_period = max_period
-        self.positional_scale = positional_scale
-        self.weight_decay = weight_decay
+class ScaledEmbedding(nn.Embedding):
+    def __init__(self, *args, lr=None, **kwargs):
+        super().__init__(*args, **kwargs)
         self.lr = lr
-
-        assert positional_embedding in ['sin', 'rope', 'sin_rope']
-        self.rope: tp.Optional[RotaryEmbedding] = None
-        if self.positional_embedding in ['rope', 'sin_rope']:
-            assert _is_custom(custom, memory_efficient)
-            self.rope = RotaryEmbedding(d_model // num_heads, max_period=max_period,
-                                        xpos=xpos, scale=positional_scale, device=device)
-
-        self.checkpointing = checkpointing
-
-        assert checkpointing in ['none', 'torch', 'xformers_default', 'xformers_mm']
-        if self.checkpointing.startswith('xformers'):
-            _verify_xformers_internal_compat()
-
-        self.layers = nn.ModuleList()
-        for idx in range(num_layers):
-            self.layers.append(
-                layer_class(
-                    d_model=d_model, num_heads=num_heads, dim_feedforward=dim_feedforward,
-                    dropout=dropout, bias_ff=bias_ff, bias_attn=bias_attn,
-                    causal=causal, past_context=past_context, custom=custom,
-                    memory_efficient=memory_efficient, attention_as_float32=attention_as_float32,
-                    cross_attention=cross_attention, layer_scale=layer_scale, rope=self.rope,
-                    device=device, dtype=dtype, **kwargs))
-
-        if self.checkpointing != 'none':
-            for layer in self.layers:
-                # see audiocraft/optim/fsdp.py, magic signal to indicate this requires fixing the
-                # backward hook inside of FSDP...
-                layer._magma_checkpointed = True  # type: ignore
-                assert layer.layer_drop == 0., "Need further checking"  # type: ignore
-
-    def _apply_layer(self, layer, *args, **kwargs):
-        method = self.checkpointing
-        if method == 'none':
-            return layer(*args, **kwargs)
-        elif method == 'torch':
-            return torch_checkpoint(layer, *args, use_reentrant=False, **kwargs)
-        elif method.startswith('xformers'):
-            from xformers.checkpoint_fairinternal import checkpoint, _get_default_policy
-            if method == 'xformers_default':
-                # those operations will be saved, and not recomputed.
-                # According to Francisco we can get smarter policies but this is a good start.
-                allow_list = [
-                    "xformers.efficient_attention_forward_cutlass.default",
-                    "xformers_flash.flash_fwd.default",
-                    "aten.addmm.default",
-                    "aten.mm.default",
-                ]
-            elif method == 'xformers_mm':
-                # those operations will be saved, and not recomputed.
-                # According to Francisco we can get smarter policies but this is a good start.
-                allow_list = [
-                    "aten.addmm.default",
-                    "aten.mm.default",
-                ]
-            else:
-                raise ValueError(f"xformers checkpointing xformers policy {method} is not known.")
-            policy_fn = _get_default_policy(allow_list)
-            return checkpoint(layer, *args, policy_fn=policy_fn, **kwargs)
-        else:
-            raise ValueError(f"Checkpointing method {method} is unknown.")
-
-    def forward(self, x: torch.Tensor, separate_positional_encoding: bool = False, *args, **kwargs):
-        B, T, C = x.shape
-
-        if 'offsets' in self._streaming_state:
-            offsets = self._streaming_state['offsets']
-        else:
-            offsets = torch.zeros(B, dtype=torch.long, device=x.device)
-
-        if self.positional_embedding in ['sin', 'sin_rope']:
-            if separate_positional_encoding:
-                # encode music and motion separately
-                positions = torch.arange(T // 2, device=x.device).view(1, -1, 1)
-                positions = positions + offsets.view(-1, 1, 1)
-                pos_emb = create_sin_embedding(positions, C, max_period=self.max_period, dtype=x.dtype)
-
-                x[:, :T // 2] += self.positional_scale * pos_emb
-                x[:, T // 2:] += self.positional_scale * pos_emb
-            else:
-                positions = torch.arange(T, device=x.device).view(1, -1, 1)
-                positions = positions + offsets.view(-1, 1, 1)
-                pos_emb = create_sin_embedding(positions, C, max_period=self.max_period, dtype=x.dtype)
-                x = x + self.positional_scale * pos_emb
-
-        for layer in self.layers:
-            x = self._apply_layer(layer, x, *args, **kwargs)
-
-        if self._is_streaming:
-            self._streaming_state['offsets'] = offsets + T
-
-        return x
 
     def make_optim_group(self):
         group = {"params": list(self.parameters())}
         if self.lr is not None:
             group["lr"] = self.lr
-        if self.weight_decay is not None:
-            group["weight_decay"] = self.weight_decay
         return group
 
 
-# special attention related function
-
-def _verify_xformers_memory_efficient_compat():
-    try:
-        from ..xformers_.ops import memory_efficient_attention, LowerTriangularMask  # noqa
-    except ImportError:
-        raise ImportError(
-            "xformers is not installed. Please install it and try again.\n"
-            "To install on AWS and Azure, run \n"
-            "FORCE_CUDA=1 TORCH_CUDA_ARCH_LIST='8.0'\\\n"
-            "pip install -U git+https://git@github.com/fairinternal/xformers.git#egg=xformers\n"
-            "To install on FAIR Cluster, run \n"
-            "FORCE_CUDA=1 TORCH_CUDA_ARCH_LIST='6.0;7.0'\\\n"
-            "pip install -U git+https://git@github.com/fairinternal/xformers.git#egg=xformers\n")
+@dataclass
+class LMOutput:
+    logits: torch.Tensor  # [B, K, T, card]
+    mask: torch.Tensor  # [B, K, T]
 
 
-def _verify_xformers_internal_compat():
-    try:
-        from xformers.checkpoint_fairinternal import checkpoint, _get_default_policy  # noqa
-    except ImportError:
-        raise ImportError(
-            "Francisco's fairinternal xformers is not installed. Please install it and try again.\n"
-            "To install on AWS and Azure, run \n"
-            "FORCE_CUDA=1 TORCH_CUDA_ARCH_LIST='8.0'\\\n"
-            "pip install -U git+https://git@github.com/fairinternal/xformers.git#egg=xformers\n"
-            "To install on FAIR Cluster, run \n"
-            "FORCE_CUDA=1 TORCH_CUDA_ARCH_LIST='6.0;7.0'\\\n"
-            "pip install -U git+https://git@github.com/fairinternal/xformers.git#egg=xformers\n")
+class LMModel(StreamingModule):
+    def __init__(
+        self, pattern_provider: CodebooksPatternProvider, condition_provider: ConditioningProvider,
+        fuser: ConditionFuser, n_q: int = 8, card: int = 1024, dim: int = 128, num_heads: int = 8,
+        hidden_scale: int = 4, norm: str = 'layer_norm', norm_first: bool = False,
+        emb_lr: tp.Optional[float] = None, bias_proj: bool = True,
+        weight_init: tp.Optional[str] = None, depthwise_init: tp.Optional[str] = None,
+        zero_bias_init: bool = False, cfg_dropout: float = 0.0, cfg_coef: float = 1.0,
+        attribute_dropout: tp.Dict[str, tp.Dict[str, float]] = {}, two_step_cfg: bool = False,
+        **kwargs
+    ):
+        super().__init__()
+        self.cfg_coef = cfg_coef
+        self.cfg_dropout = ClassifierFreeGuidanceDropout(p=cfg_dropout)
+        self.att_dropout = AttributeDropout(p=attribute_dropout)
+        self.condition_provider = condition_provider
+        self.fuser = fuser
+        self.card = card
+        embed_dim = self.card + 1
+        self.n_q = n_q
+        self.dim = dim
+        self.pattern_provider = pattern_provider
+        self.two_step_cfg = two_step_cfg
 
+        self.emb = nn.ModuleList([ScaledEmbedding(embed_dim, dim, lr=emb_lr) for _ in range(n_q)])
+        self.motion_emb = nn.ModuleList([ScaledEmbedding(embed_dim, dim, lr=emb_lr) for _ in range(n_q)])
 
-def _is_custom(custom: bool, memory_efficient: bool):
-    return custom or memory_efficient
+        if 'activation' in kwargs:
+            kwargs['activation'] = get_activation_fn(kwargs['activation'])
+        self.transformer = StreamingTransformer(
+            d_model=dim, num_heads=num_heads, dim_feedforward=int(hidden_scale * dim),
+            norm=norm, norm_first=norm_first, **kwargs)
+
+        self.out_norm: tp.Optional[nn.Module] = None
+        if norm_first:
+            self.out_norm = create_norm_fn(norm, dim)
+
+        # classification head for music
+        self.linears = nn.ModuleList([nn.Linear(dim, self.card, bias=bias_proj) for _ in range(n_q)])
+        # classification head for motion
+        self.motion_linears = nn.ModuleList([nn.Linear(dim, self.card, bias=bias_proj) for _ in range(n_q)])
+
+        self._init_weights(weight_init, depthwise_init, zero_bias_init)
+        self._fsdp: tp.Optional[nn.Module]
+        self.__dict__['_fsdp'] = None
+
+    def _init_weights(self, weight_init: tp.Optional[str], depthwise_init: tp.Optional[str], zero_bias_init: bool):
+        assert depthwise_init is None or depthwise_init in ['current', 'global']
+        assert depthwise_init is None or weight_init is not None, \
+            "If 'depthwise_init' is defined, a 'weight_init' method should be provided."
+        assert not zero_bias_init or weight_init is not None, \
+            "If 'zero_bias_init', a 'weight_init' method should be provided"
+
+        if weight_init is None:
+            return
+
+        for emb_layer in self.emb:
+            init_layer(emb_layer, method=weight_init, init_depth=None, zero_bias_init=zero_bias_init)
+        for emb_layer in self.motion_emb:
+            init_layer(emb_layer, method=weight_init, init_depth=None, zero_bias_init=zero_bias_init)
+
+        for layer_idx, tr_layer in enumerate(self.transformer.layers):
+            depth = None
+            if depthwise_init == 'current':
+                depth = layer_idx + 1
+            elif depthwise_init == 'global':
+                depth = len(self.transformer.layers)
+            init_fn = partial(init_layer, method=weight_init, init_depth=depth, zero_bias_init=zero_bias_init)
+            tr_layer.apply(init_fn)
+
+        for linear in self.linears:
+            init_layer(linear, method=weight_init, init_depth=None, zero_bias_init=zero_bias_init)
+        for linear in self.motion_linears:
+            init_layer(linear, method=weight_init, init_depth=None, zero_bias_init=zero_bias_init)
+
+    @property
+    def special_token_id(self) -> int:
+        return self.card
+
+    @property
+    def num_codebooks(self) -> int:
+        return self.n_q
+
+    def forward(
+        self,
+        sequence: torch.LongTensor,
+        conditions: tp.List[ConditioningAttributes],
+        src_mask: tp.Optional[torch.Tensor] = None,
+        condition_tensors: tp.Optional[ConditionTensors] = None,
+        return_last_layer: bool = False
+    ) -> tp.Union[tp.Tuple[torch.Tensor, torch.Tensor], torch.Tensor]:
+        B, K, S = sequence.shape
+        assert K == self.num_codebooks, "Sequence shape must match the specified number of codebooks"
+
+        music_input = sum([self.emb[k](sequence[:, k, :S//2]) for k in range(K)])  # [B, S//2, dim]
+        motion_input = sum([self.motion_emb[k](sequence[:, k, S//2:]) for k in range(K)])  # [B, S//2, dim]
+        input_ = torch.cat((music_input, motion_input), dim=1)  # [B, S, dim]
+
+        if condition_tensors is None:
+            assert not self._is_streaming, "Conditions tensors should be precomputed when streaming."
+            # apply dropout modules
+            conditions = self.cfg_dropout(conditions)
+            conditions = self.att_dropout(conditions)
+            tokenized = self.condition_provider.tokenize(conditions)
+            # encode conditions and fuse, both have a streaming cache to not recompute when generating.
+            condition_tensors = self.condition_provider(tokenized)
+        else:
+            assert not conditions, "Shouldn't pass both conditions and condition_tensors."
+
+        input_, cross_attention_input = self.fuser(input_, condition_tensors)
+
+        out = self.transformer(
+            input_, separate_positional_encoding=True, cross_attention_src=cross_attention_input, src_mask=src_mask
+        )
+        if self.out_norm:
+            out = self.out_norm(out)
+
+        if return_last_layer:
+            return out  # [B, S, dim]
+
+        music_logits = torch.stack([self.linears[k](out[:, :S // 2]) for k in range(K)], dim=1)  # [B, K, S/2, card]
+        motion_logits = torch.stack([self.motion_linears[k](out[:, S // 2:]) for k in range(K)], dim=1)   # [B, K, S/2, card]
+
+        # remove the prefix from the model outputs
+        if len(self.fuser.fuse2cond['prepend']) > 0:
+            music_logits = music_logits[:, :, -S:]
+            motion_logits = motion_logits[:, :, -S:]
+
+        return music_logits, motion_logits
+
+    def compute_predictions(
+        self,
+        music_codes: torch.LongTensor,
+        motion_codes: torch.LongTensor,
+        mode: str,
+        conditions: tp.List[ConditioningAttributes],
+        condition_tensors: tp.Optional[ConditionTensors] = None,
+    ) -> tp.Tuple[LMOutput, LMOutput]:
+        # prepare input sequence
+        B, K, T_music = music_codes.shape
+        T_motion = motion_codes.shape[-1]
+        assert T_music == T_motion
+        music_codes = music_codes.contiguous()
+        motion_codes = motion_codes.contiguous()
+
+        # map codes [B, K, T] into pattern sequence [B, K, S] using special_token_id for masked tokens
+        music_pattern = self.pattern_provider.get_pattern(T_music)
+        motion_pattern = self.pattern_provider.get_pattern(T_motion)
+        music_sequence_codes, _, _ = music_pattern.build_pattern_sequence(
+            music_codes, self.special_token_id, keep_only_valid_steps=True
+        )
+        motion_sequence_codes, _, _ = motion_pattern.build_pattern_sequence(
+            motion_codes, self.special_token_id, keep_only_valid_steps=True
+        )
+
+        # concat music sequence and motion sequence in time dimension
+        sequence_codes = torch.cat((music_sequence_codes, motion_sequence_codes), dim=-1)
+
+        # prepare self-attention mask
+        self_attn_map = self.get_self_attn_mask(music_sequence_codes.shape[-1], motion_sequence_codes.shape[-1], mode)
+
+        # apply model on pattern sequence
+        music_logits, motion_logits = self(
+            sequence_codes, conditions, src_mask=self_attn_map, condition_tensors=condition_tensors
+        )  # both [B, K, S, card]
+
+        # map back the logits on pattern sequence to logits on original codes: [B, K, S, card] -> [B, K, T, card]
+        # and provide the corresponding mask over invalid positions of tokens
+        music_logits = music_logits.permute(0, 3, 1, 2)  # [B, card, K, S]
+        motion_logits = motion_logits.permute(0, 3, 1, 2)
+        # note: we use nans as special token to make it obvious if we feed unexpected logits
+        music_logits, _, music_logits_mask = music_pattern.revert_pattern_logits(
+            music_logits, float('nan'), keep_only_valid_steps=True
+        )
+        motion_logits, _, motion_logits_mask = motion_pattern.revert_pattern_logits(
+            motion_logits, float('nan'), keep_only_valid_steps=True
+        )
+        music_logits = music_logits.permute(0, 2, 3, 1)  # [B, K, T, card]
+        music_logits_mask = music_logits_mask[None, :, :].expand(B, -1, -1)  # [K, T] -> [B, K, T]
+        motion_logits = motion_logits.permute(0, 2, 3, 1)  # [B, K, T, card]
+        motion_logits_mask = motion_logits_mask[None, :, :].expand(B, -1, -1)  # [K, T] -> [B, K, T]
+
+        return LMOutput(music_logits, music_logits_mask), LMOutput(motion_logits, motion_logits_mask)
+
+    def get_music_motion_context(
+        self,
+        music_codes: torch.LongTensor,
+        motion_codes: torch.LongTensor,
+        conditions: tp.List[ConditioningAttributes],
+        condition_tensors: tp.Optional[ConditionTensors] = None
+    ) -> torch.Tensor:
+        # prepare input sequence
+        B, K, T_music = music_codes.shape
+        T_motion = motion_codes.shape[-1]
+        assert T_music == T_motion
+        music_codes = music_codes.contiguous()
+        motion_codes = motion_codes.contiguous()
+
+        # map codes [B, K, T] into pattern sequence [B, K, S] using special_token_id for masked tokens
+        music_pattern = self.pattern_provider.get_pattern(T_music)
+        motion_pattern = self.pattern_provider.get_pattern(T_motion)
+        music_sequence_codes, _, _ = music_pattern.build_pattern_sequence(
+            music_codes, self.special_token_id, keep_only_valid_steps=True
+        )
+        motion_sequence_codes, _, _ = motion_pattern.build_pattern_sequence(
+            motion_codes, self.special_token_id, keep_only_valid_steps=True
+        )
+
+        # concat music sequence and motion sequence in time dimension
+        sequence_codes = torch.cat((music_sequence_codes, motion_sequence_codes), dim=-1)
+
+        # prepare self-attention mask
+        self_attn_map = self.get_self_attn_mask(
+            music_sequence_codes.shape[-1], motion_sequence_codes.shape[-1], mode='music_motion'
+        )
+
+        # apply model on pattern sequence
+        music_motion_context = self(
+            sequence_codes, conditions, src_mask=self_attn_map,
+            condition_tensors=condition_tensors, return_last_layer=True
+        )  # [B, S, dim]
+
+        return music_motion_context
+
+    def get_self_attn_mask(self, section_1: int, section_2: int, mode: str) -> torch.Tensor:
+        device = next(iter(self.parameters())).device
+        mask = torch.zeros((section_1 + section_2, section_1 + section_2), dtype=torch.bool, device=device)
+
+        mask[:section_1, :section_1] = ~torch.ones((section_1, section_1), dtype=torch.bool, device=device).triu(1)
+        mask[section_1:section_1 + section_2, :section_1] = ~torch.ones((section_2, section_1), dtype=torch.bool, device=device).triu(1)
+        mask[:section_1, section_1:section_1 + section_2] = ~torch.ones((section_1, section_2), dtype=torch.bool, device=device).triu(1)
+        mask[section_1:section_1 + section_2, section_1:section_1 + section_2] = ~torch.ones((section_2, section_2), dtype=torch.bool, device=device).triu(1)
+
+        # if mode == 'music2motion':
+        #     mask[section_1:section_1 + section_2, :section_1] = True
+        #     mask[:section_1, section_1:section_1 + section_2] = False
+        # elif mode == 'motion2music':
+        #     mask[:section_1, section_1:section_1 + section_2] = True
+        #     mask[section_1:section_1 + section_2, :section_1] = False
+        # else:
+        #     assert mode == 'music_motion'
+
+        mask = torch.where(mask, 0., float('-inf'))
+        return mask
+
+    def _sample_next_token(
+        self,
+        music_sequence: torch.LongTensor,
+        motion_sequence: torch.LongTensor,
+        cfg_conditions: CFGConditions,
+        mode: str,
+        use_sampling: bool = False,
+        temp: float = 1.0,
+        top_k: int = 0,
+        top_p: float = 0.0,
+        cfg_coef: tp.Optional[float] = None,
+    ) -> tp.Tuple[torch.Tensor, torch.Tensor]:
+        B = music_sequence.shape[0]
+        cfg_coef = self.cfg_coef if cfg_coef is None else cfg_coef
+
+        sequence = torch.cat((music_sequence, motion_sequence), dim=-1)
+        src_mask = self.get_self_attn_mask(music_sequence.shape[-1], motion_sequence.shape[-1], mode=mode)
+
+        assert isinstance(cfg_conditions, dict)
+        condition_tensors = cfg_conditions
+        if condition_tensors:
+            # Preparing for CFG, predicting both conditional and unconditional logits.
+            sequence = torch.cat([sequence, sequence], dim=0)
+
+        music_all_logits, motion_all_logits = self(
+            sequence, conditions=[], condition_tensors=condition_tensors, src_mask=src_mask
+        )
+
+        if condition_tensors:
+            music_cond_logits, music_uncond_logits = music_all_logits.split(B, dim=0)  # [B, K, T, card]
+            motion_cond_logits, motion_uncond_logits = motion_all_logits.split(B, dim=0)  # [B, K, T, card]
+            music_logits = music_uncond_logits + (music_cond_logits - music_uncond_logits) * cfg_coef
+            motion_logits = motion_uncond_logits + (motion_cond_logits - motion_uncond_logits) * cfg_coef
+        else:
+            music_logits = music_all_logits
+            motion_logits = motion_all_logits
+
+        # sample music tokne
+        music_logits = music_logits.permute(0, 1, 3, 2)  # [B, K, card, T]
+        music_logits = music_logits[..., -1]  # [B, K, card]
+        # Apply softmax for sampling if temp > 0. Else, do greedy sampling to avoid zero division error.
+        if use_sampling and temp > 0.0:
+            probs = torch.softmax(music_logits / temp, dim=-1)
+            if top_p > 0.0:
+                music_next_token = utils.sample_top_p(probs, p=top_p)
+            elif top_k > 0:
+                music_next_token = utils.sample_top_k(probs, k=top_k)
+            else:
+                music_next_token = utils.multinomial(probs, num_samples=1)
+        else:
+            music_next_token = torch.argmax(music_logits, dim=-1, keepdim=True)
+
+        # sample music tokne
+        motion_logits = motion_logits.permute(0, 1, 3, 2)  # [B, K, card, T]
+        motion_logits = motion_logits[..., -1]  # [B, K, card]
+        # Apply softmax for sampling if temp > 0. Else, do greedy sampling to avoid zero division error.
+        if use_sampling and temp > 0.0:
+            probs = torch.softmax(motion_logits / temp, dim=-1)
+            if top_p > 0.0:
+                motion_next_token = utils.sample_top_p(probs, p=top_p)
+            elif top_k > 0:
+                motion_next_token = utils.sample_top_k(probs, k=top_k)
+            else:
+                motion_next_token = utils.multinomial(probs, num_samples=1)
+        else:
+            motion_next_token = torch.argmax(motion_logits, dim=-1, keepdim=True)
+
+        return music_next_token, motion_next_token
+
+    @torch.no_grad()
+    def generate(
+        self,
+        conditions: tp.List[ConditioningAttributes] = [],
+        mode: str = None,
+        music_code: tp.Optional[torch.LongTensor] = None,
+        motion_code: tp.Optional[torch.LongTensor] = None,
+        num_samples: tp.Optional[int] = None,
+        max_gen_len: int = 256,
+        use_sampling: bool = True,
+        temp: float = 1.0,
+        top_k: int = 250,
+        top_p: float = 0.0,
+        cfg_coef: tp.Optional[float] = None,
+        check: bool = True,
+    ) -> tp.Tuple[torch.LongTensor, torch.LongTensor]:
+        assert not self.training, "generation shouldn't be used in training mode."
+        first_param = next(iter(self.parameters()))
+        device = first_param.device
+
+        assert mode in ['music_motion', 'music2motion', 'motion2music']
+        assert music_code is None or motion_code is None, "cannot provide both music and motion code."
+
+        # Checking all input shapes are consistent.
+        possible_num_samples = []
+        if num_samples is not None:
+            possible_num_samples.append(num_samples)
+        elif conditions:
+            possible_num_samples.append(len(conditions))
+        else:
+            possible_num_samples.append(1)
+        assert [x == possible_num_samples[0] for x in possible_num_samples], "Inconsistent inputs shapes"
+        num_samples = possible_num_samples[0]
+        assert num_samples > 0
+
+        # get classifier-free guidance conditions
+        cfg_conditions: CFGConditions
+        if conditions:
+            null_conditions = ClassifierFreeGuidanceDropout(p=1.0)(conditions)
+            conditions = conditions + null_conditions
+            tokenized = self.condition_provider.tokenize(conditions, device)
+            cfg_conditions = self.condition_provider(tokenized)
+        else:
+            cfg_conditions = {}
+
+        B, K = num_samples, self.num_codebooks
+
+        pattern = self.pattern_provider.get_pattern(max_gen_len)
+        # this token is used as default value for codes that are not generated yet
+        unknown_token = -1
+        # we generate codes up to the max_gen_len that will be mapped to the pattern sequence
+        # and replace the unknown code with provided code if necessary
+        if music_code is None:
+            music_gen_codes = torch.full((B, K, max_gen_len), unknown_token, dtype=torch.long, device=device)
+        else:
+            music_gen_codes = music_code
+        if motion_code is None:
+            motion_gen_codes = torch.full((B, K, max_gen_len), unknown_token, dtype=torch.long, device=device)
+        else:
+            motion_gen_codes = motion_code
+        assert music_gen_codes.shape[-1] == motion_gen_codes.shape[-1], "music code and motion code should be in equal time dimension"
+        # create the gen_sequence with proper interleaving from the pattern: [B, K, S]
+        music_gen_sequence, _, music_mask = pattern.build_pattern_sequence(music_gen_codes, self.special_token_id)   # gen_sequence: padded with self.special_token_id
+        motion_gen_sequence, _, motion_mask = pattern.build_pattern_sequence(motion_gen_codes, self.special_token_id)   # gen_sequence: padded with self.special_token_id
+
+        gen_sequence_len = music_gen_sequence.shape[-1]  # gen_sequence shape is [B, K, S]
+        for offset in tqdm(range(1, gen_sequence_len), desc=f"Generating music & motion of shape {music_gen_sequence.shape}"):
+            # get current sequence
+            music_curr_sequence = music_gen_sequence[..., 0:offset]
+            music_curr_mask = music_mask[None, ..., 0:offset].expand(B, -1, -1)
+            motion_curr_sequence = motion_gen_sequence[..., 0:offset]
+            motion_curr_mask = motion_mask[None, ..., 0:offset].expand(B, -1, -1)
+            if check:
+                # check coherence between mask and sequence
+                assert (music_curr_sequence == torch.where(music_curr_mask, music_curr_sequence, self.special_token_id)).all()
+                assert (motion_curr_sequence == torch.where(motion_curr_mask, motion_curr_sequence, self.special_token_id)).all()
+                # should never happen as gen_sequence is filled progressively
+                assert not (music_curr_sequence == unknown_token).any()
+                assert not (motion_curr_sequence == unknown_token).any()
+            # sample next token from the model, next token shape is [B, K, 1]
+            music_next_token, motion_next_token = self._sample_next_token(
+                music_curr_sequence, motion_curr_sequence, cfg_conditions, mode, use_sampling,
+                temp, top_k, top_p, cfg_coef=cfg_coef
+            )
+            # ensure the tokens that should be masked are properly set to special_token_id
+            # as the model never output special_token_id
+            music_valid_mask = music_mask[..., offset:offset+1].expand(B, -1, -1)
+            music_next_token[~music_valid_mask] = self.special_token_id
+            motion_valid_mask = motion_mask[..., offset:offset + 1].expand(B, -1, -1)
+            motion_next_token[~motion_valid_mask] = self.special_token_id
+            # We only write over unknown tokens
+            # i.e., update the prediction if they are not provided
+            if music_code is None:
+                music_gen_sequence[..., offset:offset+1] = torch.where(
+                    music_gen_sequence[..., offset:offset+1] == unknown_token,
+                    music_next_token, music_gen_sequence[..., offset:offset+1]
+                )
+            if motion_code is None:
+                motion_gen_sequence[..., offset:offset + 1] = torch.where(
+                    motion_gen_sequence[..., offset:offset + 1] == unknown_token,
+                    motion_next_token, motion_gen_sequence[..., offset:offset + 1]
+                )
+
+        # ensure sequence has been entirely filled
+        assert not (music_gen_sequence == unknown_token).any()
+        assert not (motion_gen_sequence == unknown_token).any()
+        # ensure gen_sequence pattern and mask are matching
+        # which means the gen_sequence is valid according to the pattern
+        assert (
+            music_gen_sequence == torch.where(music_mask[None, ...].expand(B, -1, -1), music_gen_sequence,
+                                              self.special_token_id)).all()
+        assert (
+            motion_gen_sequence == torch.where(motion_mask[None, ...].expand(B, -1, -1), motion_gen_sequence,
+                                               self.special_token_id)).all()
+        # get back the codes, trimming the prompt if needed and cutting potentially incomplete timesteps
+        music_out_codes, out_indexes, music_out_mask = pattern.revert_pattern_sequence(music_gen_sequence, special_token=unknown_token)
+        motion_out_codes, out_indexes, motion_out_mask = pattern.revert_pattern_sequence(motion_gen_sequence, special_token=unknown_token)
+
+        # sanity checks over the returned codes and corresponding masks
+        assert (music_out_codes[..., :max_gen_len] != unknown_token).all()
+        assert (music_out_mask[..., :max_gen_len] == 1).all()
+        assert (motion_out_codes[..., :max_gen_len] != unknown_token).all()
+        assert (motion_out_mask[..., :max_gen_len] == 1).all()
+
+        music_out_codes = music_out_codes[..., 0:max_gen_len]
+        motion_out_codes = motion_out_codes[..., 0:max_gen_len]
+
+        # ensure the returned codes are all valid
+        assert (music_out_codes >= 0).all() and (music_out_codes <= self.card).all()
+        assert (motion_out_codes >= 0).all() and (motion_out_codes <= self.card).all()
+        return music_out_codes, motion_out_codes

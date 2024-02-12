@@ -25,6 +25,17 @@ _HF_MODEL_CHECKPOINTS_MAP = {
     "melody": "facebook/musicgen-melody",
 }
 
+# trainable keys in music-to-motion pretraining
+# this includes motion codebook, motion feed-forward and motion classification head
+trainable_keys = [
+    'motion_emb',
+    'motion_linears',
+    'linear1_motion',
+    'linear2_motion',
+    'norm1_motion',
+    'norm2_motion'
+]
+
 
 class MusicMotionTransformer(pl.LightningModule):
     def __init__(
@@ -40,6 +51,7 @@ class MusicMotionTransformer(pl.LightningModule):
 
         stage: tp.Optional[str] = None,
         mm_ckpt: tp.Optional[str] = None,
+        is_pretraining: bool = False,
 
         generation_params: tp.Optional[dict] = None,
         scheduler_config: tp.Optional[dict] = None,
@@ -62,10 +74,16 @@ class MusicMotionTransformer(pl.LightningModule):
         # load music motion captioner
         self.text_model: TextGenerator = instantiate_from_config(text_model_config)
 
+        # setup training stage and trainable parameters
+        self.is_pretraining = is_pretraining
         assert stage is None or stage in ['train_music_motion', 'train_caption']
         self.stage = stage
         if self.stage == 'train_music_motion':
-            print('In training music motion stage!')
+            if self.is_pretraining:
+                print('Pretrain on motion generation!')
+            else:
+                print('Finetune on music-motion joint generation!')
+                self.init_music_motion_lm_with_pretrained(mm_ckpt)
         if self.stage == 'train_caption':
             print('In training caption stage!')
             self.init_music_motion_lm_with_pretrained(mm_ckpt)
@@ -122,9 +140,25 @@ class MusicMotionTransformer(pl.LightningModule):
 
     def setup_trainable_parameters(self):
         if self.stage == 'train_music_motion':
-            # freeze all parameters for text generation model
-            for name, parameter in self.text_model.named_parameters():
-                parameter.requires_grad = False
+            if self.is_pretraining:
+                # allow motion related parameters trainable
+                for name, parameter in self.model.named_parameters():
+                    if any([s in name for s in trainable_keys]):
+                        parameter.requires_grad = True
+                    else:
+                        parameter.requires_grad = False
+                # freeze all parameters for text generation model
+                for name, parameter in self.text_model.named_parameters():
+                    parameter.requires_grad = False
+            else:
+                # set all parameters in music motion transformer as trainable, except for condition provider
+                for name, parameter in self.model.named_parameters():
+                    parameter.requires_grad = True
+                for name, parameter in self.model.condition_provider.named_parameters():
+                    parameter.requires_grad = False
+                # freeze all parameters for text generation model
+                for name, parameter in self.text_model.named_parameters():
+                    parameter.requires_grad = False
         elif self.stage == 'train_caption':
             # freeze all parameters in music-motion transformer model
             for name, parameter in self.model.named_parameters():
