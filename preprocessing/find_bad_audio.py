@@ -79,11 +79,11 @@ if __name__ == '__main__':
 
             print(f'{i+1} {file}: rms: {rms}, loudness: {loudness}, recon loss: {recon_loss}, ratio: {len(ignore_list)/(num_processed + i + 1)}')
 
-            if recon_loss < 0.0025:
+            if recon_loss < 0.0015:
                 ignore_list.append(file.split('.')[0])
-            elif loudness < -25 or loudness > -7:
+            elif loudness < -28 or loudness > -7:
                 ignore_list.append(file.split('.')[0])
-            elif rms < 0.06:
+            elif rms < 0.042:
                 ignore_list.append(file.split('.')[0])
 
             if i % 1000 == 0:
