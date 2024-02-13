@@ -30,7 +30,7 @@ echo ""
 echo " Run started at:- "
 date
 
-srun python train.py --stage train_music_motion -b configs/train_music_motion_exp_9.yaml -r training_logs/2024-02-12T08-47-02_exp_9/checkpoints/last.ckpt
+srun python train.py --stage train_music_motion -b configs/train_music_motion_exp_9_2.yaml -r training_logs/2024-02-13T04-08-27_exp_9_2/checkpoints/last.ckpt
 
 echo "Run completed at:- "
 date
