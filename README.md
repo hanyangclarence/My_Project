@@ -22,3 +22,6 @@
 I found that previous drop out is duplicated. Now I remove the 
 duplicated dropout and run again.
 
+
+## Attempt 9.2: Use new music4all_ignore
+
