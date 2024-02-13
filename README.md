@@ -24,3 +24,6 @@ achieve this.
 ## Attempt 13.2: Try more motion weight
 It seems that music converges faster than motion.
 Now I change motion weight to 0.15
+
+
+## Attempt 13.3: Try with new music4all_ignore
