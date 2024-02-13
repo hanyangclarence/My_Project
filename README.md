@@ -19,4 +19,5 @@ Train with seed 42
     e12, gs4: 'frechet_distance': 44.8129, 'frechet_audio_distance': 7.0727, 'kl_sigmoid': 6.8485, 'kl_softmax': 2.0718
     e15, gs4: 'frechet_distance': 46.4674, 'frechet_audio_distance': 8.0166, 'kl_sigmoid': 6.9369, 'kl_softmax': 2.1033
     e18, gs4: 'frechet_distance': 45.7732, 'frechet_audio_distance': 7.3562, 'kl_sigmoid': 6.9483, 'kl_softmax': 2.0863
-    e24, gs4: 
+    e24, gs4: 'frechet_distance': 45.1174, 'frechet_audio_distance': 6.7724, 'kl_sigmoid': 7.0517, 'kl_softmax': 2.0945
+    e30, gs4: 'frechet_distance': 47.8983, 'frechet_audio_distance': 6.8479, 'kl_sigmoid': 6.9076, 'kl_softmax': 2.1087
