@@ -63,6 +63,7 @@ data:
         dropout_prob: 0.6
         vqvae_sr: 32000
         natural_language_caption_ratio: 1.0
+        ignore_file_name: 'music4all_ignore_new.txt'
 
     validation:
       target: unimumo.data.music_motion_text_dataset.MusicMotionTextDataset
@@ -76,6 +77,7 @@ data:
         dropout_prob: 0.6
         vqvae_sr: 32000
         natural_language_caption_ratio: 1.0
+        ignore_file_name: 'music4all_ignore_new.txt'
 
 lightning:
   callbacks:
