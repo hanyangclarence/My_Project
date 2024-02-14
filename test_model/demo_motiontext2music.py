@@ -77,6 +77,23 @@ if __name__ == "__main__":
         help="load checkpoint",
     )
 
+    # these two are useless
+    parser.add_argument(
+        "--start",
+        type=float,
+        required=False,
+        default=0.,
+        help="start ratio",
+    )
+
+    parser.add_argument(
+        "--end",
+        type=float,
+        required=False,
+        default=1.,
+        help="end ratio",
+    )
+
     args = parser.parse_args()
 
     seed_everything(args.seed)
