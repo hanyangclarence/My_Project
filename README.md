@@ -27,3 +27,8 @@ Now I change motion weight to 0.15
 
 
 ## Attempt 13.3: Try with new music4all_ignore
+
+    musiccap:
+    e12, gs4: 'frechet_distance': 44.5241, 'frechet_audio_distance': 7.2789, 'kl_sigmoid': 6.998, 'kl_softmax': 2.0388
+    e15, gs4: (but this sounds pretty good..) 'frechet_distance': 48.1491, 'frechet_audio_distance': 6.8872, 'kl_sigmoid': 6.8832, 'kl_softmax': 2.0731
+    e18, gs4: 'frechet_distance': 46.5963, 'frechet_audio_distance': 7.1516, 'kl_sigmoid': 7.0043, 'kl_softmax': 2.0852
