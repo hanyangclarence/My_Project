@@ -32,7 +32,7 @@ _efficient_attention_backend: str = 'torch'
 
 
 def scaled_dot_product_attention(
-    query, key, value, attn_mask=None, dropout_p=0.0, is_causal=False, scale=None, cross_attn_mask=None
+    query, key, value, attn_mask=None, dropout_p=0.0, is_causal=False, scale=None, cross_attn_mask=None, mu2mo_attn_bias=None
 ) -> torch.Tensor:
     L, S = query.size(-2), key.size(-2)
     scale_factor = 1 / math.sqrt(query.size(-1)) if scale is None else scale
@@ -44,7 +44,7 @@ def scaled_dot_product_attention(
         attn_bias.to(query.dtype)
 
     if attn_mask is not None:
-        assert is_causal is False and cross_attn_mask is None
+        assert is_causal is False and cross_attn_mask is None and mu2mo_attn_bias is not None
         if attn_mask.dtype == torch.bool:
             attn_mask.masked_fill_(attn_mask.logical_not(), float("-inf"))
         else:
@@ -52,13 +52,22 @@ def scaled_dot_product_attention(
 
     attn_bias = attn_bias[None, ...]  # [L_feature, L_cond] -> [1, L_feature, L_cond]
     if cross_attn_mask is not None:
-        assert attn_mask is None
+        assert attn_mask is None and mu2mo_attn_bias is None
         attn_bias = attn_bias.repeat(query.shape[0], 1, 1)  # [B, L_feature, L_cond]
         feature_len = attn_bias.shape[1]
         attn_bias[:, :feature_len//2, :] += cross_attn_mask[:, :1, :]
         attn_bias[:, feature_len//2:, :] += cross_attn_mask[:, 1:, :]
 
-    attn_weight = query @ key.transpose(-2, -1) * scale_factor  # [B, head, L_feature, L_cond]
+    if mu2mo_attn_bias is None:
+        # cross attention
+        attn_weight = query @ key.transpose(-2, -1) * scale_factor  # [B, head, L_feature, L_cond]
+    else:
+        # query: [B, head, L_feature, dim]
+        mu2mo_attn_bias_expanded = torch.zeros(1, mu2mo_attn_bias.shape[1], S, mu2mo_attn_bias.shape[3], device=mu2mo_attn_bias.device)  # [1, head, L_cond, dim]
+        mu2mo_attn_bias_expanded[:, :, S//2:] += mu2mo_attn_bias
+        attn_weight_music = query[:, :, :L//2] @ (key + mu2mo_attn_bias_expanded).transpose(-2, -1) * scale_factor  # [B, head, L_feature//2, L_cond]
+        attn_weight_motion = query[:, :, L//2:] @ key.transpose(-2, -1) * scale_factor  # [B, head, L_feature//2, L_cond]
+        attn_weight = torch.cat((attn_weight_music, attn_weight_motion), dim=2)  # [B, head, L_feature, L_cond]
     attn_bias = attn_bias.unsqueeze(1)  # [B, 1, L_feature, L_cond]
     attn_weight += attn_bias
     attn_weight = torch.softmax(attn_weight, dim=-1)
@@ -352,15 +361,15 @@ class StreamingMultiheadAttention(StreamingModule):
 
     def forward(self, query: torch.Tensor, key: torch.Tensor, value: torch.Tensor,
                 key_padding_mask=None, need_weights=False, attn_mask=None,
-                average_attn_weights=True, is_causal=False, cross_attn_mask=None):
+                average_attn_weights=True, is_causal=False, cross_attn_mask=None, attn_bias=None):
         # if attn_mask is not None:
         #     assert not self.causal, "crafted attention mask conflicts with default causal attention mask."
         # assert not is_causal, ("New param added in torch 2.0.1 not supported, "
         #                        "use the causal args in the constructor.")
         if attn_mask is None:
-            assert self.cross_attention and cross_attn_mask is not None
+            assert self.cross_attention and cross_attn_mask is not None and attn_bias is None
         else:
-            assert not self.cross_attention and cross_attn_mask is None
+            assert not self.cross_attention and cross_attn_mask is None and attn_bias is not None
 
         time_dim = _get_attention_time_dimension(self.memory_efficient)
         if time_dim == 2:
@@ -449,7 +458,7 @@ class StreamingMultiheadAttention(StreamingModule):
                             q, k, v, is_causal=attn_mask is not None, dropout_p=p)
                     else:
                         x = scaled_dot_product_attention(
-                            q, k, v, attn_mask=attn_mask, dropout_p=p, cross_attn_mask=cross_attn_mask)
+                            q, k, v, attn_mask=attn_mask, dropout_p=p, cross_attn_mask=cross_attn_mask, mu2mo_attn_bias=attn_bias)
                 else:
                     x = ops.memory_efficient_attention(q, k, v, attn_mask, p=p)
             else:
@@ -583,6 +592,9 @@ class StreamingTransformerLayer(nn.TransformerEncoderLayer):
         self.norm1_motion = create_norm_fn(norm, d_model, **factory_kwargs)
         self.norm2_motion = create_norm_fn(norm, d_model, **factory_kwargs)
 
+        # Add a trainable bias for music to motion attention
+        self.mu2mo_attn_bias = nn.Parameter(torch.zeros((1, num_heads, 1, d_model // num_heads)), requires_grad=True)
+
     def _cross_attention_block(self, src: torch.Tensor,
                                cross_attention_src: torch.Tensor, 
                                cross_attn_mask: torch.Tensor) -> torch.Tensor:
@@ -591,6 +603,15 @@ class StreamingTransformerLayer(nn.TransformerEncoderLayer):
         x = self.cross_attention(
             src, cross_attention_src, cross_attention_src, need_weights=False, cross_attn_mask=cross_attn_mask)[0]
         return self.dropout_cross(x)  # type: ignore
+    
+    # overwrite self-attention block
+    def _sa_block(self, x: Tensor, attn_mask: Tensor, key_padding_mask: Tensor, attn_bias: Tensor) -> Tensor:
+        x = self.self_attn(x, x, x,
+                           attn_mask=attn_mask,
+                           key_padding_mask=key_padding_mask,
+                           need_weights=False,
+                           attn_bias=attn_bias)[0]
+        return self.dropout1(x)
 
     # feed forward block for motion mlp
     def _ff_block_motion(self, x: Tensor) -> Tensor:
@@ -609,7 +630,7 @@ class StreamingTransformerLayer(nn.TransformerEncoderLayer):
         S = x.shape[1]
         if self.norm_first:
             x = x + self.layer_scale_1(
-                self._sa_block(self.norm1(x), src_mask, src_key_padding_mask))
+                self._sa_block(self.norm1(x), src_mask, src_key_padding_mask, self.mu2mo_attn_bias))
             if cross_attention_src is not None:
                 x = x + self.layer_scale_cross(
                     self._cross_attention_block(

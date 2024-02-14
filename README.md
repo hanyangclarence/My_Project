@@ -9,3 +9,8 @@
 ## Attempt 14.2: Give higher weight to music
 Change motion weight from 0.5 to 0.3
 
+Some of the results are audible, but most are not!
+
+
+## Attempt14.3: Add a trainable bias for music2motion attention
+

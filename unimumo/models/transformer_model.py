@@ -33,7 +33,8 @@ trainable_keys = [
     'linear1_motion',
     'linear2_motion',
     'norm1_motion',
-    'norm2_motion'
+    'norm2_motion',
+    'mu2mo_attn_bias'
 ]
 
 
