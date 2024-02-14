@@ -27,6 +27,12 @@ duplicated dropout and run again.
     e18, gs4: 'frechet_distance': 48.0789, 'frechet_audio_distance': 6.9741, 'kl_sigmoid': 6.9807, 'kl_softmax': 2.087
     e21, gs4: 'frechet_distance': 45.2588, 'frechet_audio_distance': 6.8772, 'kl_sigmoid': 6.8112, 'kl_softmax': 2.0537
 
+    motion 5s:
+    e12, gs3: 'fid_k': 16.275101492011558, 'fid_m': 11.558221028033564, 'div_k': 8.350077255086822, 'div_m': 6.656770772705376
+    e15, gs3: 'fid_k': 12.224880600965221, 'fid_m': 26.15127219280832, 'div_k': 7.857880953744702, 'div_m': 7.591406889865497
+    e18, gs3: 'fid_k': 12.346548757727618, 'fid_m': (14.107412824309584-2.5201116225166668e-08j), 'div_k': 8.638446641432136, 'div_m': 6.97356408528261
+    e21, gs3: 'fid_k': 9.27205327628269, 'fid_m': 12.808922134547942, 'div_k': 8.987521374829305, 'div_m': 7.60629108551221
+
 
 ## Attempt 9.2: Use new music4all_ignore
 
