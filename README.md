@@ -45,4 +45,5 @@ Now I change motion weight to 0.15
     e12, gs4: 'frechet_distance': 43.5271, 'frechet_audio_distance': 5.3584, 'kl_sigmoid': 6.6753, 'kl_softmax': 2.0042
     e15, gs4: 'frechet_distance': 44.5799, 'frechet_audio_distance': 7.4903, 'kl_sigmoid': 6.5004, 'kl_softmax': 1.9895
     e18, gs4: 'frechet_distance': 45.0807, 'frechet_audio_distance': 6.4447, 'kl_sigmoid': 6.7654, 'kl_softmax': 2.0635
+    e21, gs4: 'frechet_distance': 43.6362, 'frechet_audio_distance': 7.0687, 'kl_sigmoid': 7.0275, 'kl_softmax': 2.0871
     
