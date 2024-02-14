@@ -2,7 +2,7 @@
 9.2(1457967)
 
 # Testing:
-9 (motion, new musiccap), 13.2 (new musiccap), 13.3, 11.2, 14.2
+9 (new musiccap), 13.2 (new musiccap), 13.3, 11.2, 14.2
 
 
 # TODO:
