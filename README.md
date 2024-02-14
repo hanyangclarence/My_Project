@@ -31,7 +31,14 @@ Now I change motion weight to 0.15
     e18, gs4: 'frechet_distance': 46.5963, 'frechet_audio_distance': 7.1516, 'kl_sigmoid': 7.0043, 'kl_softmax': 2.0852
     e21, gs4: 'frechet_distance': 45.3224, 'frechet_audio_distance': 5.9036, 'kl_sigmoid': 7.058, 'kl_softmax': 2.0773
 
+    motion 5s: e18 and e21 looks the best, but might be a bit overfit
+    e12, gs3: 'fid_k': 12.921445971613068, 'fid_m': 24.939611892884685, 'div_k': 8.544877247367815, 'div_m': 7.583071551841238
+    e15, gs3: 'fid_k': 10.793337536523282, 'fid_m': 15.477890313025043, 'div_k': 8.866393450522118, 'div_m': 7.217119566350136
+    e18, gs3: 'fid_k': (12.150440499805114-1.0108535545147974e-06j), 'fid_m': (22.708859243262836-2.5935756483221857e-08j), 'div_k': 8.263081838603073, 'div_m': 8.446190809732103
+    e21, gs3: 'fid_k': 18.22769548681839, 'fid_m': 16.428731811593394, 'div_k': 10.538286240042385, 'div_m': 8.152619813429473
+
 
 ## Attempt 13.3: Try with new music4all_ignore
 
+    musiccap: sounds not good for all...
     
