@@ -25,7 +25,7 @@ duplicated dropout and run again.
     e12, gs4: 'frechet_distance': 43.4774, 'frechet_audio_distance': 7.3071, 'kl_sigmoid': 7.064, 'kl_softmax': 2.0481
     e15, gs4: 'frechet_distance': 44.4807, 'frechet_audio_distance': 6.2163, 'kl_sigmoid': 6.9078, 'kl_softmax': 2.0458
     e18, gs4: 'frechet_distance': 48.0789, 'frechet_audio_distance': 6.9741, 'kl_sigmoid': 6.9807, 'kl_softmax': 2.087
-    e21, gs4: 
+    e21, gs4: 'frechet_distance': 45.2588, 'frechet_audio_distance': 6.8772, 'kl_sigmoid': 6.8112, 'kl_softmax': 2.0537
 
 
 ## Attempt 9.2: Use new music4all_ignore
