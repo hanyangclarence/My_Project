@@ -14,3 +14,8 @@ Some of the results are audible, but most are not!
 
 ## Attempt14.3: Add a trainable bias for music2motion attention
 
+Hmmm no, 14.2 and 14.3 set the wrong weight...
+
+## Attempt 14.4: Motion weight 0.5
+
+## Attempt 14.5: Motion weight 0.3
