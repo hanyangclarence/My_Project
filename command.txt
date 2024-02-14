@@ -87,7 +87,4 @@ scp -r mc@129.213.146.32:/home/ubuntu/LMCG/LMCGnngn/yanghan/music_motion_diffusi
 
 python unimumo/merge_model_checkpoints.py -s ./final_model --music_vqvae /gpfs/u/home/LMCG/LMCGnngn/scratch/yanghan/music_dance/weight/musicgen_vqvae.bin --motion_vqvae_ckpt /gpfs/u/home/LMCG/LMCGnngn/scratch/yanghan/music_dance/weight/mm_vqvae.ckpt --motion_vqvae_config configs/train_motion_vqvae.yaml --mm_lm_ckpt training_logs/2023-12-20T13-53-43_train_lm/checkpoints/epoch\=000035.ckpt --mm_lm_config configs/train_lm.yaml --motion_metadata_dir /gpfs/u/home/LMCG/LMCGnngn/scratch/yanghan/music_dance/motion_data
 
-conda create -n unimumo python=3.10
-conda activate unimumo
-
-pip install torch==1.13.1+cu116 --extra-index-url https://download.pytorch.org/whl/cu116
+python launch_jobs.py -n 20 -c "python test_model/test_musiccaps.py -s exp_result/exp_13_3_e12_musiccap_gs4/ -gs 4 --ckpt exp_checkpoint/exp_13_3_e12.ckpt" -j 13_12 ; python launch_jobs.py -n 20 -c "python test_model/test_musiccaps.py -s exp_result/exp_13_3_e15_musiccap_gs4/ -gs 4 --ckpt exp_checkpoint/exp_13_3_e15.ckpt" -j 13_15 ; python launch_jobs.py -n 20 -c "python test_model/test_musiccaps.py -s exp_result/exp_13_3_e1_musiccap_gs4/ -gs 4 --ckpt exp_checkpoint/exp_13_3_e18.ckpt" -j 13_18 ; python launch_jobs.py -n 20 -c "python test_model/test_musiccaps.py -s exp_result/exp_13_3_e21_musiccap_gs4/ -gs 4 --ckpt exp_checkpoint/exp_13_3_e21.ckpt" -j 13_21
