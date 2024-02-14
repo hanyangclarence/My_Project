@@ -1,8 +1,8 @@
 # Running:
-9.2(1457967), 14.3(1458473)
+
 
 # Testing:
-9 (new musiccap), 13.3, 11.2
+9 (new musiccap)
 
 
 # TODO:
