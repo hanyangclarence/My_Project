@@ -30,6 +30,7 @@ Now I change motion weight to 0.15
     e15, gs4: (but this sounds pretty good..) 'frechet_distance': 48.1491, 'frechet_audio_distance': 6.8872, 'kl_sigmoid': 6.8832, 'kl_softmax': 2.0731
     e18, gs4: 'frechet_distance': 46.5963, 'frechet_audio_distance': 7.1516, 'kl_sigmoid': 7.0043, 'kl_softmax': 2.0852
     e21, gs4: 'frechet_distance': 45.3224, 'frechet_audio_distance': 5.9036, 'kl_sigmoid': 7.058, 'kl_softmax': 2.0773
+    (new metrics) KL_Sigmoid:  6.61594; KL:  1.99115; PSNR: nan SSIM: nan ISc:  1.61455 (0.024696); KID: nan (nan) FD: 38.52773; FAD: 5.93870
 
     motion 5s: e18 and e21 looks the best, but might be a bit overfit
     e12, gs3: 'fid_k': 12.921445971613068, 'fid_m': 24.939611892884685, 'div_k': 8.544877247367815, 'div_m': 7.583071551841238
@@ -41,4 +42,7 @@ Now I change motion weight to 0.15
 ## Attempt 13.3: Try with new music4all_ignore
 
     musiccap: sounds not good for all...
+    e12, gs4: 'frechet_distance': 43.5271, 'frechet_audio_distance': 5.3584, 'kl_sigmoid': 6.6753, 'kl_softmax': 2.0042
+    e15, gs4: 'frechet_distance': 44.5799, 'frechet_audio_distance': 7.4903, 'kl_sigmoid': 6.5004, 'kl_softmax': 1.9895
+    e18, gs4: 'frechet_distance': 45.0807, 'frechet_audio_distance': 6.4447, 'kl_sigmoid': 6.7654, 'kl_softmax': 2.0635
     
