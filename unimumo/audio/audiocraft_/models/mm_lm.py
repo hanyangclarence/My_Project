@@ -283,8 +283,10 @@ class LMModel(StreamingModule):
         music_codes: torch.LongTensor,
         motion_codes: torch.LongTensor,
         conditions: tp.List[ConditioningAttributes],
+        mode: str,
         condition_tensors: tp.Optional[ConditionTensors] = None
     ) -> torch.Tensor:
+        self.eval()
         # prepare input sequence
         B, K, T_music = music_codes.shape
         T_motion = motion_codes.shape[-1]
@@ -302,12 +304,18 @@ class LMModel(StreamingModule):
             motion_codes, self.special_token_id, keep_only_valid_steps=True
         )
 
+        # fill unused codes with special_token_id
+        if mode == 'music_caption':
+            motion_sequence_codes[:] = self.special_token_id
+        if mode == 'motion_caption':
+            music_sequence_codes[:] = self.special_token_id
+
         # concat music sequence and motion sequence in time dimension
         sequence_codes = torch.cat((music_sequence_codes, motion_sequence_codes), dim=-1)
 
         # prepare self-attention mask
         self_attn_mask = self.get_self_attn_mask(
-            music_sequence_codes.shape[-1], motion_sequence_codes.shape[-1], mode='music_motion'
+            music_sequence_codes.shape[-1], motion_sequence_codes.shape[-1], mode=mode
         )
         # prepare cross-attention mask for conditions
         cross_attn_mask = torch.where(condition_tensors['description'][-1], 0., float('-inf'))
@@ -324,19 +332,16 @@ class LMModel(StreamingModule):
         device = next(iter(self.parameters())).device
         mask = torch.zeros((section_1 + section_2, section_1 + section_2), dtype=torch.bool, device=device)
 
-        mask[:section_1, :section_1] = ~torch.ones((section_1, section_1), dtype=torch.bool, device=device).triu(1)
-        mask[section_1:section_1 + section_2, :section_1] = ~torch.ones((section_2, section_1), dtype=torch.bool, device=device).triu(1)
-        mask[:section_1, section_1:section_1 + section_2] = ~torch.ones((section_1, section_2), dtype=torch.bool, device=device).triu(1)
-        mask[section_1:section_1 + section_2, section_1:section_1 + section_2] = ~torch.ones((section_2, section_2), dtype=torch.bool, device=device).triu(1)
-
-        # if mode == 'music2motion':
-        #     mask[section_1:section_1 + section_2, :section_1] = True
-        #     mask[:section_1, section_1:section_1 + section_2] = False
-        # elif mode == 'motion2music':
-        #     mask[:section_1, section_1:section_1 + section_2] = True
-        #     mask[section_1:section_1 + section_2, :section_1] = False
-        # else:
-        #     assert mode == 'music_motion'
+        if mode in ['music_caption', 'motion_caption']:
+            # fully attention mask, but no cross attention mask
+            mask[:section_1, :section_1] = True
+            mask[section_1:, section_1:] = True
+        else:
+            assert mode in ['music_motion', 'music2motion', 'motion2music']
+            mask[:section_1, :section_1] = ~torch.ones((section_1, section_1), dtype=torch.bool, device=device).triu(1)
+            mask[section_1:section_1 + section_2, :section_1] = ~torch.ones((section_2, section_1), dtype=torch.bool, device=device).triu(1)
+            mask[:section_1, section_1:section_1 + section_2] = ~torch.ones((section_1, section_2), dtype=torch.bool, device=device).triu(1)
+            mask[section_1:section_1 + section_2, section_1:section_1 + section_2] = ~torch.ones((section_2, section_2), dtype=torch.bool, device=device).triu(1)
 
         mask = torch.where(mask, 0., float('-inf'))
         return mask

@@ -22,7 +22,6 @@ class MusicMotionTextDataset(Dataset):
         music_dataset_name='music4all',
         ignore_file_name='music4all_ignore.txt',
         natural_language_caption_ratio=0.3,
-        train_caption=False
     ):
         # all data paths
         self.motion_meta_dir = motion_meta_dir
@@ -37,7 +36,6 @@ class MusicMotionTextDataset(Dataset):
         self.music_target_length = int(duration * 50)
         self.dropout_prob = dropout_prob
         self.natural_language_caption_ratio = natural_language_caption_ratio
-        self.train_caption = train_caption
 
         # all data lists
         self.music_data = []

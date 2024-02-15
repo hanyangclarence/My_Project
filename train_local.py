@@ -88,7 +88,7 @@ def get_parser(**parser_kwargs):
         "--stage",
         type=str,
         required=False,
-        default='train_music_motion',
+        default='train_caption',
         choices=['train_vqvae', 'train_music_motion', 'train_caption'],
         help="specify one of the training stages of unimumo",
     )
@@ -96,7 +96,7 @@ def get_parser(**parser_kwargs):
         "--mm_ckpt",
         type=str,
         required=False,
-        default=None,
+        default='training_logs/2024-02-15T14-54-06_local_run/checkpoints/last.ckpt',
         help="path for trained music motion lm. Need to be provided when training the caption model.",
     )
 

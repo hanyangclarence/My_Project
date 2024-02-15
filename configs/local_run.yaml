@@ -33,7 +33,7 @@ model:
       target: unimumo.models.text_generation_model.TextGenerator
       params:
         model: '/home/hanyang/.cache/huggingface/hub/models--t5-small/snapshots/df1b051c49625cf57a3d0d8d3863ed4d13564fe4'
-        max_length: 64
+        max_length: 100
         context_dim: 1024
         self_dim: 512
 
@@ -52,7 +52,6 @@ data:
         music_code_dir: 'data/music/music4all_codes'
         motion_code_dir: 'data/motion/aligned_motion_code_music4all_60hz'
         duration: 1
-        dropout_prob: 0.6
         vqvae_sr: 32000
         natural_language_caption_ratio: 1.0
 
@@ -65,7 +64,6 @@ data:
         music_code_dir: 'data/music/music4all_codes'
         motion_code_dir: 'data/motion/aligned_motion_code_music4all_60hz'
         duration: 1
-        dropout_prob: 0.6
         vqvae_sr: 32000
         natural_language_caption_ratio: 1.0
 
@@ -85,7 +83,7 @@ lightning:
         sr: 32000
         motion_fps: 60
         max_video_logged: 120
-        disabled: false
+        disabled: true
   trainer:
     benchmark: True
     devices: 1

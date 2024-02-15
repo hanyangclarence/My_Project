@@ -196,7 +196,7 @@ class MusicMotionLogger(Callback):
                 pl_module.eval()
 
             # on both stages, log music motion generation results
-            if pl_module.stage == 'train_music_motion' or pl_module.stage == 'train_caption':
+            if pl_module.stage == 'train_music_motion':
                 with torch.no_grad():
                     music_gen, motion_gen, music_ref, motion_ref, text_prompt = pl_module.generate_sample(
                         batch,

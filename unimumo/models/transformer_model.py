@@ -154,7 +154,26 @@ class MusicMotionTransformer(pl.LightningModule):
             name_count[name] = sum([s == name for s in filtered_name])
         print('All trainable parameters:')
         for name, count in name_count.items():
-            print(f'[{name}] x {count}')
+            print(f'\t[{name}] x {count}')
+
+        frozen_name_list = []
+        for name, parameter in self.named_parameters():
+            if not parameter.requires_grad:
+                frozen_name_list.append(name)
+        # remove repetitive names
+        filtered_name = []
+        for name in frozen_name_list:
+            name = name.split('.')
+            name = [s for s in name if not s.isdigit()]
+            name = '.'.join(name)
+            filtered_name.append(name)
+        name_set = list(OrderedDict.fromkeys(filtered_name))
+        name_count = {}
+        for name in name_set:
+            name_count[name] = sum([s == name for s in filtered_name])
+        print('\nAll frozen parameters:')
+        for name, count in name_count.items():
+            print(f'\t[{name}] x {count}')
 
     def training_step(
         self,
@@ -165,8 +184,8 @@ class MusicMotionTransformer(pl.LightningModule):
 
         if self.stage == 'train_music_motion':  # train the music motion lm
             # # randomly choose the mode on this training step
-            mode = random.choice(['music_motion', 'music2motion', 'motion2music'])
-            text_condition = self.prepare_text_condition(text_cond)  # here mode is useless actually
+            mode = 'music_motion'
+            text_condition = self.prepare_text_condition(text_cond)
 
             music_output, motion_output = self.model.compute_predictions(
                 music_code, motion_code, mode, [], condition_tensors=text_condition
@@ -212,18 +231,21 @@ class MusicMotionTransformer(pl.LightningModule):
         else:  # train the text generation model
             batch_size = len(text_cond)
 
-            # use null condition for music motion network
+            # choose training mode and then dropout features
+            mode = random.choice(['music_caption', 'motion_caption'])
+            text_cond = self.prepare_text_generation_target(text_cond, mode)
+
+            # use null condition for music motion LM
             descriptions: tp.List[str] = ['<separation>'] * batch_size
             null_text_condition = self.prepare_text_condition(descriptions, mode='music_motion')
 
             # get music motion features using music motion LM
             with torch.no_grad():
-                self.model.eval()
                 music_motion_context = self.model.get_music_motion_context(
-                    music_code, motion_code, [], condition_tensors=null_text_condition
+                    music_code, motion_code, [], mode, condition_tensors=null_text_condition
                 )
 
-            text_loss = self.text_model(text_cond, music_motion_context)
+            text_loss = self.text_model.forward(text_cond, music_motion_context, mode)
 
             self.log("train/text_loss", text_loss, prog_bar=True, logger=True, on_step=True, on_epoch=False, sync_dist=True)
 
@@ -244,7 +266,7 @@ class MusicMotionTransformer(pl.LightningModule):
         music_code, motion_code, text_cond = batch[self.music_key], batch[self.motion_key], batch[self.text_cond_key]
 
         if self.stage == 'train_music_motion':
-            mode = random.choice(['music_motion', 'music2motion', 'motion2music'])
+            mode = 'music_motion'
             text_condition = self.prepare_text_condition(text_cond)
 
             music_output, motion_output = self.model.compute_predictions(
@@ -271,18 +293,21 @@ class MusicMotionTransformer(pl.LightningModule):
         else:
             batch_size = len(text_cond)
 
-            # use null condition for music motion network
+            # choose a mode and then dropout features
+            mode = random.choice(['music_caption', 'motion_caption'])
+            text_cond = self.prepare_text_generation_target(text_cond, mode)
+
+            # use null condition for music motion LM
             descriptions: tp.List[str] = ['<separation>'] * batch_size
             null_text_condition = self.prepare_text_condition(descriptions, mode='music_motion')
 
             # get music motion features using music motion LM
             with torch.no_grad():
-                self.model.eval()
                 music_motion_context = self.model.get_music_motion_context(
-                    music_code, motion_code, [], condition_tensors=null_text_condition
+                    music_code, motion_code, [], mode, condition_tensors=null_text_condition
                 )
 
-            text_loss = self.text_model(text_cond, music_motion_context)
+            text_loss = self.text_model.forward(text_cond, music_motion_context, mode)
 
             self.log("val/text_loss", text_loss, prog_bar=True, logger=True, on_step=True, on_epoch=True, sync_dist=True)
 
@@ -360,6 +385,17 @@ class MusicMotionTransformer(pl.LightningModule):
 
         return condition
 
+    def prepare_text_generation_target(self, descriptions: tp.List[str], mode: tp.Optional[str]) -> tp.List[str]:
+        assert mode in ['music_caption', 'motion_caption']
+        return_desc = []
+        for desc in descriptions:
+            if mode == 'music_caption':
+                return_desc.append(desc.split('<separation>')[0].strip())
+            else:
+                return_desc.append(desc.split('<separation>')[-1].strip())
+        return return_desc
+
+
     def generate_sample(
         self,
         batch: tp.Dict[str, tp.Union[torch.LongTensor, tp.List[str]]],
@@ -410,6 +446,7 @@ class MusicMotionTransformer(pl.LightningModule):
     def generate_captions(
         self,
         batch: tp.Dict[str, tp.Union[torch.LongTensor, tp.List[str]]],
+        mode: tp.Optional[str] = None,
         return_caption_only: bool = False
     ) -> tp.Union[tp.List[str], tp.Tuple[tp.List[str], torch.LongTensor, torch.LongTensor]]:
         music_code, motion_code, text_cond = batch[self.music_key], batch[self.motion_key], batch[self.text_cond_key]
@@ -417,10 +454,13 @@ class MusicMotionTransformer(pl.LightningModule):
         descriptions: tp.List[str] = ['<separation>'] * batch_size
         null_text_condition = self.prepare_text_condition(descriptions, mode='music_motion')  # use null condition
 
+        if mode is None:
+            mode = random.choice(['music_caption', 'motion_caption'])
+
         music_motion_context = self.model.get_music_motion_context(
-            music_code, motion_code, [], condition_tensors=null_text_condition
+            music_code, motion_code, [], mode, condition_tensors=null_text_condition
         )
-        captions = self.text_model.generate_caption(music_motion_context)
+        captions = self.text_model.generate_caption(music_motion_context, mode)
 
         if return_caption_only:
             return captions

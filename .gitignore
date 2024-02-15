@@ -6,3 +6,4 @@ hparams.yaml
 data/
 pretrained/
 training_logs/
+.vscode/
