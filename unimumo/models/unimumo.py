@@ -215,22 +215,25 @@ class UniMuMo(nn.Module):
     @torch.no_grad()
     def generate_text(
         self,
-        waveform: np.ndarray,
-        motion_feature: np.ndarray
+        waveform: tp.Optional[np.ndarray] = None,
+        motion_feature: tp.Optional[np.ndarray] = None
     ) -> tp.List[str]:
-        music_code = self.encode_music(waveform)
-        motion_code = self.encode_motion(motion_feature)
-        # ensure music code and motion code are of the same length
-        code_length = min(music_code.shape[-1], motion_code.shape[-1])
-        music_code = music_code[..., :code_length]
-        motion_code = motion_code[..., :code_length]
+        assert (waveform is None) ^ (motion_feature is None), 'only one modality should be provided'
+        if waveform is not None:
+            music_code = self.encode_music(waveform)
+            motion_code = torch.zeros_like(music_code)
+            mode = 'music_caption'
+        else:  # motion code is not None
+            motion_code = self.encode_motion(motion_feature)
+            music_code = torch.zeros_like(motion_code)
+            mode = 'motion_caption'
 
         batch = {
             'text': ['<separation>'],
             'music_code': music_code,
             'motion_code': motion_code
         }
-        return self.music_motion_lm.generate_captions(batch, return_caption_only=True)
+        return self.music_motion_lm.generate_captions(batch, return_caption_only=True, mode=mode)
 
     def denormalize_motion(self, vec: np.ndarray) -> np.ndarray:
         return vec * self.motion_std + self.motion_mean
