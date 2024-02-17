@@ -294,6 +294,8 @@ class LMModel(StreamingModule):
         music_codes = music_codes.contiguous()
         motion_codes = motion_codes.contiguous()
 
+        print(music_codes.shape, motion_codes.shape, '!!!')
+
         # map codes [B, K, T] into pattern sequence [B, K, S] using special_token_id for masked tokens
         music_pattern = self.pattern_provider.get_pattern(T_music)
         motion_pattern = self.pattern_provider.get_pattern(T_motion)
@@ -310,6 +312,7 @@ class LMModel(StreamingModule):
         if mode == 'motion_caption':
             music_sequence_codes[:] = self.special_token_id
 
+        print(music_sequence_codes.shape, motion_sequence_codes.shape, '???')
         # concat music sequence and motion sequence in time dimension
         sequence_codes = torch.cat((music_sequence_codes, motion_sequence_codes), dim=-1)
 
