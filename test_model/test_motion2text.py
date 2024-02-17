@@ -1,10 +1,14 @@
 import argparse
+import json
 import os
+
+import numpy as np
 import torch
 from os.path import join as pjoin
 import soundfile as sf
-import numpy as np
+import pandas as pd
 import subprocess
+import random
 from pytorch_lightning import seed_everything
 
 import sys
@@ -20,10 +24,10 @@ from unimumo.motion import skel_animation
 from unimumo.motion.utils import kinematic_chain
 from unimumo.models import UniMuMo
 
+'''
+Load paired music and motion, all made to 10 seconds
+'''
 
-# Test motion-to-music on AIST++ dataset.
-# The data and split are downloaded from https://github.com/L-YeZhu/D2M-GAN (since I cannot find elsewhere
-# the aligned music and motion of AIST++)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -34,15 +38,23 @@ if __name__ == "__main__":
         type=str,
         required=False,
         help="The path to save model output",
-        default="./test_motion2music_aist",
+        default="./test_motion2text_humanml3d",
     )
 
     parser.add_argument(
-        "--aist_dir",
+        "--music_code_dir",
         type=str,
         required=False,
         help="The path to music data dir",
-        default="/gpfs/u/home/LMCG/LMCGnngn/scratch/yanghan/aist_plusplus_final"
+        default="data/music/music4all_codes"
+    )
+
+    parser.add_argument(
+        "--music_dir",
+        type=str,
+        required=False,
+        help="The path to meta data dir",
+        default="data/music",
     )
 
     parser.add_argument(
@@ -54,12 +66,20 @@ if __name__ == "__main__":
     )
 
     parser.add_argument(
-        "-gs",
-        "--guidance_scale",
+        "--motion_code_dir",
+        type=str,
+        required=False,
+        help="The path to motion data dir",
+        default='data/motion/aligned_humanml3d_test_motion_code',
+    )
+
+    parser.add_argument(
+        "-d",
+        "--duration",
         type=float,
         required=False,
-        default=3.0,
-        help="Guidance scale (Large => better quality and relavancy to text; Small => better diversity)",
+        default=10,
+        help="Generated audio time",
     )
 
     parser.add_argument(
@@ -78,6 +98,14 @@ if __name__ == "__main__":
         help="load checkpoint",
     )
 
+    parser.add_argument(
+        "--batch_size",
+        type=int,
+        required=False,
+        default=10,
+        help="end ratio",
+    )
+
     args = parser.parse_args()
 
     seed_everything(args.seed)
@@ -85,116 +113,132 @@ if __name__ == "__main__":
     music_save_path = pjoin(save_path, 'music')
     motion_save_path = pjoin(save_path, 'motion')
     video_save_path = pjoin(save_path, 'video')
+    feature_263_save_path = pjoin(save_path, 'feature_263')
+    feature_22_3_save_path = pjoin(save_path, 'feature_22_3')
     os.makedirs(save_path, exist_ok=True)
     os.makedirs(music_save_path, exist_ok=True)
     os.makedirs(motion_save_path, exist_ok=True)
     os.makedirs(video_save_path, exist_ok=True)
-    guidance_scale = args.guidance_scale
-    aist_dir = args.aist_dir
+    os.makedirs(feature_263_save_path, exist_ok=True)
+    os.makedirs(feature_22_3_save_path, exist_ok=True)
+    batch_size = args.batch_size
     motion_dir = args.motion_dir
-
-    # read all aist motion data
-    motion_data = {}
-    for split in ['train', 'val', 'test']:
-        data_list = os.listdir(pjoin(motion_dir, split, 'joint_vecs'))
-        data_list = [s.split('.')[0] for s in data_list]
-        data_list = [s for s in data_list if s[0] == 'g']
-        motion_data[split] = data_list
-        print(data_list[:20])
+    music_code_dir = args.music_code_dir
+    motion_code_dir = args.motion_code_dir
+    duration = args.duration
 
     motion_id_list = []
-    with open(pjoin(aist_dir, 'aist_motion_test_segment.txt'), 'r') as f:
+    with open(pjoin(motion_dir, 'humanml3d_test.txt'), 'r') as f:
         for line in f.readlines():
-            motion_id_list.append(line.strip())
+            if os.path.exists(pjoin(motion_dir, 'test', 'joint_vecs', line.strip() + '.npy')):
+                motion_id_list.append(line.strip())
 
-    total_num = len(motion_id_list)
-    print(f'total number of test data: {total_num}')
-    print('train: ', len(motion_data['train']), 'test: ', len(motion_data['test']), 'val: ', len(motion_data['val']))
+    paired_music_motion = os.listdir(motion_code_dir)
+    music_data_list = os.listdir(music_code_dir)
+
+    print('number of motion data:', len(motion_id_list), file=sys.stderr)
+    print('number of paired motion: ', len(paired_music_motion), file=sys.stderr)
 
     # load model
     model = UniMuMo.from_checkpoint(args.ckpt)
+    device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
 
+    result_dict = {}
     count = 0
-    fps = model.motion_fps
-    while count < total_num:
-        # The data format in the directly downloaded aist++ is different from ours,
-        # we just use their split and filename and load our data
-        # And since their filename is slightly difference from our data
-        # we need to change it name a bit...
-        motion_id = motion_id_list[count]  # motion_s2/test/motion_id_segn.npy
-        motion_id = motion_id.split('/')[-1].split('.')[0]
-        print(f'{motion_id} -> ', end='')
-        motion_name = '_'.join(motion_id.split('_')[:-1])
-        motion_name = '_'.join(motion_name.split('_')[:2]) + '_cAll_' + '_'.join(motion_name.split('_')[-3:])
-        seg_num = int(motion_id.split('_')[-1][3:])
-        print(f'{motion_name}, segment {seg_num}, ', end='')
+    with open(pjoin(save_path, f'gen_captions.json'), 'w') as f:
+        while count < len(motion_id_list):
+            print(f'{count}/{len(motion_id_list)}')
+            motion_code_list = []
+            music_code_list = []
+            motion_id_batch = motion_id_list[count: count + batch_size]
 
-        if motion_name in motion_data['train']:
-            motion_path = pjoin(motion_dir, 'train', 'joint_vecs', motion_name + '.npy')
-            print('train')
-        elif motion_name in motion_data['val']:
-            motion_path = pjoin(motion_dir, 'val', 'joint_vecs', motion_name + '.npy')
-            print('val')
-        elif motion_name in motion_data['test']:
-            motion_path = pjoin(motion_dir, 'test', 'joint_vecs', motion_name + '.npy')
-            print('test')
-        else:
-            motion_path = None
-        assert os.path.exists(motion_path)
-        motion = np.load(motion_path)
+            for motion_id in motion_id_batch:
+                # find a paired music code
+                selection = [s.split('_!humanml3d_test!_')[0] for s in paired_music_motion if s.split('_!humanml3d_test!_')[1][:-4] == motion_id]
+                music_code_id = selection[0]  # just choose the first one
+                music_code = torch.load(pjoin(music_code_dir, music_code_id + '.pth'))['codes']  # (1, 4, T)
+                motion_code = torch.load(pjoin(motion_code_dir, f'{music_code_id}_!humanml3d_test!_{motion_id}.pth'))  # (4, T)
+                motion_code = motion_code[None, ...]  # (1, 4, T)
 
-        if fps == 20:
-            # motion is in aist, so down sample by 3
-            motion = motion[::3]
-        # go to the specific segment
-        motion = motion[(seg_num - 1) * fps * 2: seg_num * fps * 2]
-        motion = motion[None, ...]
-        print(f'motion shape: {motion.shape}')
+                # cut first 10 s
+                music_code = music_code[:, :, :duration * 50]
+                motion_code = motion_code[:, :, :duration * 50]
 
-        waveform_gen = model.generate_music_from_motion(
-            motion_feature=motion,
-            # text_description=['<music_prompt_start> The music is a rock, pop music, with fast tempo, which is intense. <music_prompt_end> '
-            #                   '<motion_prompt_start> The genre of the dance is hip-hop. <motion_prompt_end>'],
-            conditional_guidance_scale=guidance_scale
-        )
-        joint_gen = model.motion_vec_to_joint(
-            torch.Tensor(model.normalize_motion(motion))
-        )
+                music_code_list.append(music_code)
+                motion_code_list.append(motion_code)
 
-        waveform_gen = waveform_gen.squeeze()
-        joint_gen = joint_gen.squeeze()
-        print(f'generate waveform: {waveform_gen.shape}, joint: {joint_gen.shape}')
+            music_codes = torch.cat(music_code_list, dim=0).to(device)
+            motion_codes = torch.cat(motion_code_list, dim=0).to(device)
 
-        music_filename = "%s.mp3" % motion_id
-        music_path = os.path.join(music_save_path, music_filename)
-        try:
-            sf.write(music_path, waveform_gen, 32000)
-        except Exception as e:
-            print(e)
-            count += 1
-            continue
+            with torch.no_grad():
+                print(f'music codes: {music_codes.shape}, motion codes: {motion_codes.shape}')
 
-        motion_filename = "%s.mp4" % motion_id
-        motion_path = pjoin(motion_save_path, motion_filename)
-        try:
-            skel_animation.plot_3d_motion(
-                motion_path, kinematic_chain, joint_gen, title='None', vbeat=None,
-                fps=fps, radius=4
-            )
-        except Exception as e:
-            print(e)
-            count += 1
-            continue
+                batch = {
+                    'text': [''] * music_codes.shape[0],
+                    'music_code': music_codes,
+                    'motion_code': motion_codes
+                }
 
-        video_filename = "%s.mp4" % motion_id
-        video_path = pjoin(video_save_path, video_filename)
-        try:
-            subprocess.call(
-                f"ffmpeg -i {motion_path} -i {music_path} -c copy {video_path}",
-                shell=True)
-        except Exception as e:
-            print(e)
-            count += 1
-            continue
+                captions = model.music_motion_lm.generate_captions(batch, return_caption_only=True)
 
-        count += 1
+                # only log one each time for checking
+                waveform_decoded, motion_decoded = model.decode_music_motion(
+                    music_codes[0:1], motion_codes[0:1]
+                )
+                feature_263 = motion_decoded['feature']
+                joint = motion_decoded['joint']
+                print(f'feature 263: {feature_263.shape}, joint: {joint.shape}')
+
+            os.makedirs(save_path, exist_ok=True)
+
+            music_filename = "%s.mp3" % motion_id_batch[0]
+            music_path = os.path.join(music_save_path, music_filename)
+            try:
+                sf.write(music_path, waveform_decoded.squeeze(), 32000)
+            except Exception as e:
+                print(e)
+
+            motion_filename = "%s.mp4" % motion_id_batch[0]
+            motion_path = pjoin(motion_save_path, motion_filename)
+            try:
+                skel_animation.plot_3d_motion(
+                    motion_path, kinematic_chain, joint, title='None', vbeat=None,
+                    fps=model.motion_fps, radius=4
+                )
+            except Exception as e:
+                print(e)
+
+            video_filename = "%s.mp4" % motion_id_batch[0]
+            video_path = pjoin(video_save_path, video_filename)
+            try:
+                subprocess.call(
+                    f"ffmpeg -i {motion_path} -i {music_path} -c copy {video_path}",
+                    shell=True)
+            except Exception as e:
+                print(e)
+
+            feature_263_filename = "%s.npy" % motion_id_batch[0]
+            feature_263_path = pjoin(feature_263_save_path, feature_263_filename)
+            np.save(feature_263_path, feature_263)
+
+            feature_22_3_filename = "%s.npy" % motion_id_batch[0]
+            feature_22_3_path = pjoin(feature_22_3_save_path, feature_22_3_filename)
+            np.save(feature_22_3_path, joint)
+
+            # write generated descriptions
+            for i in range(len(captions)):
+                description = captions[i]
+
+                # split motion description
+                description = description.split('<motion_prompt_start>')[1]
+                description = description.split('<motion_prompt_end>')[0]
+                description = description.replace('The motion is that', '')
+                description = description.replace('The dance is that', '')
+                description = description.strip().capitalize()
+
+                result_dict[motion_id_batch[i]] = description
+                print(f'{motion_id_batch[i]}\t{description}', file=sys.stderr)
+
+            count += batch_size
+
+        json.dump(result_dict, f)
