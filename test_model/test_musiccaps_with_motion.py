@@ -111,14 +111,6 @@ if __name__ == "__main__":
     )
 
     parser.add_argument(
-        "--aist_prob",
-        type=float,
-        required=False,
-        default=0.8,
-        help="Prob of choosing AIST style motion caption.",
-    )
-
-    parser.add_argument(
         "--save_wav_only",
         type=bool,
         required=False,
@@ -143,30 +135,19 @@ if __name__ == "__main__":
     motion_dir = args.motion_dir
     duration = args.duration
 
-    # load random motion descriptions
-    humanml3d_text_dir = pjoin(motion_dir, 'humanml3d_text_description')
-    descriptions = os.listdir(humanml3d_text_dir)[:500]
-    humanml3d_text = []
-    for desc_txt in descriptions:
-        with open(pjoin(motion_dir, 'humanml3d_text_description', desc_txt), 'r', encoding='UTF-8') as f:
-            texts = []
-            lines = f.readlines()
-            for line in lines:
-                text = line.split('#')[0]
-                if text[-1] == '.':
-                    text = text[:-1]
-                humanml3d_text.append(text)
-    print(f'Loaded {len(humanml3d_text)} text prompts from humanml3d')
-
-    aist_genres = ['break', 'pop', 'lock', 'middle hip-hop', 'house', 'waack', 'krump', 'street jazz', 'ballet jazz']
-
     # load musiccaps text prompt
     assert os.path.exists(args.musiccaps_dir)
     music_cap_df = pd.read_csv(pjoin(args.musiccaps_dir, 'musiccaps-public.csv'))
     text_prompt_list = list(music_cap_df['caption'])
     music_id_list = list(music_cap_df['ytid'])
 
-    print('number of testing data:', len(text_prompt_list))
+    # load motion id
+    motion_data_dir = pjoin(motion_dir, 'test', 'joint_vecs')
+    assert os.path.exists(motion_data_dir)
+    all_motion = os.listdir(motion_data_dir)
+    motion_id_list = [s for s in all_motion if s.startswith('g')]
+
+    print('number of testing data:', len(text_prompt_list), '; number of motion: ', len(motion_id_list))
 
     # load model
     model = UniMuMo.from_checkpoint(args.ckpt)
@@ -186,21 +167,29 @@ if __name__ == "__main__":
         # check whether each file has existed
         text_prompt = []
         music_id = []
+        conditional_motion_list = []
         for batch_idx in range(len(text_prompt_full)):
             if os.path.exists(pjoin(music_save_path, f'{music_id_full[batch_idx]}.mp3')):
                 continue
             else:
                 music_description = text_prompt_full[batch_idx]
-                motion_description = None
-                if random.uniform(0, 1) < args.aist_prob:
-                    # use aist style prompts
-                    genre = random.choice(aist_genres)
-                    motion_description = f'The style of the dance is {genre}.'
-                else:
-                    motion_description = random.choice(humanml3d_text)
-                music_motion_description = music_description + ' <separation> ' + motion_description
+                music_motion_description = music_description + ' <separation> '
                 text_prompt.append(music_motion_description)
                 music_id.append(music_id_full[batch_idx])
+
+                motion_id = random.choice(motion_id_list)
+                motion_feature_path = pjoin(motion_data_dir, motion_id)
+                motion_feature = np.load(motion_feature_path)
+                motion_length = motion_feature.shape[0]
+                if motion_length < duration * model.motion_fps:
+                    motion_feature = np.tile(motion_feature, ((duration * model.motion_fps) // motion_length + 1, 1))
+                motion_length = motion_feature.shape[0]
+                motion_start_idx = random.randint(0, motion_length - duration * model.motion_fps - 1)
+                motion_feature = motion_feature[motion_start_idx : motion_start_idx + duration * model.motion_fps]
+                conditional_motion_list.append(motion_feature[None, ...])
+
+        conditional_motion = np.concatenate(conditional_motion_list, axis=0)
+
 
         if len(text_prompt) == 0:
             print(f'{count}-{count + args.batch_size} exists!')
@@ -212,11 +201,17 @@ if __name__ == "__main__":
         for p in text_prompt:
             print(len(p.split(' ')), p)
 
+        print(f'motion feature shape: {conditional_motion.shape}')
+
         with torch.no_grad():
-            waveform_gen, motion_gen = model.generate_music_motion(
+            waveform_gen = model.generate_music_from_motion(
+                motion_feature=conditional_motion,
                 text_description=text_prompt,
-                duration=duration,
                 conditional_guidance_scale=guidance_scale
+            )
+
+            motion_gen = model.motion_vec_to_joint(
+                torch.Tensor(model.normalize_motion(conditional_motion))
             )
 
             os.makedirs(save_path, exist_ok=True)
