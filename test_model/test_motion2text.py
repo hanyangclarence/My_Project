@@ -147,7 +147,7 @@ if __name__ == "__main__":
 
                 batch = {
                     'text': [''] * motion_code.shape[0],
-                    'music_code': torch.zeros_like(motion_code),
+                    'music_code': torch.zeros_like(motion_code, device=device),
                     'motion_code': motion_codes
                 }
 
