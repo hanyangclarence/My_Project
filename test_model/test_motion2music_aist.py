@@ -151,10 +151,9 @@ if __name__ == "__main__":
         motion = motion[None, ...]
         print(f'motion shape: {motion.shape}')
 
+        # no text conditioning is provided here
         waveform_gen = model.generate_music_from_motion(
             motion_feature=motion,
-            # text_description=['<music_prompt_start> The music is a rock, pop music, with fast tempo, which is intense. <music_prompt_end> '
-            #                   '<motion_prompt_start> The genre of the dance is hip-hop. <motion_prompt_end>'],
             conditional_guidance_scale=guidance_scale
         )
         joint_gen = model.motion_vec_to_joint(
