@@ -22,6 +22,7 @@ class MusicMotionTextDataset(Dataset):
         music_dataset_name='music4all',
         ignore_file_name='music4all_ignore.txt',
         natural_language_caption_ratio=0.3,
+        use_mullama=True
     ):
         # all data paths
         self.motion_meta_dir = motion_meta_dir
@@ -56,11 +57,12 @@ class MusicMotionTextDataset(Dataset):
         with open(pjoin(self.music_meta_dir, 'music4all_captions_gpt.json'), 'r') as caption_fd:
             self.music_caption = json.load(caption_fd)
         # merge two descriptions
-        for k, v in llama_music_caption.items():
-            if k in self.music_caption.keys():
-                if 'male vocalist' in v:
-                    continue
-                self.music_caption[k].append(v)
+        if use_mullama:
+            for k, v in llama_music_caption.items():
+                if k in self.music_caption.keys():
+                    if 'male vocalist' in v:
+                        continue
+                    self.music_caption[k].append(v)
         # load humanml3d text descriptions
         humanml3d_text_dir = pjoin(self.motion_meta_dir, 'humanml3d_text_description')
         humanml3d_descriptions = os.listdir(humanml3d_text_dir)

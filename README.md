@@ -10,3 +10,5 @@ We start from only changing to fully attention mask in encoder!
     BERT Score: 0.8938219547271729
 
     e42:
+
+# Attempt 15.2 Not using caption from mullama
