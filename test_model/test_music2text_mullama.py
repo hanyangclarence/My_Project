@@ -111,7 +111,6 @@ if __name__ == "__main__":
     mullama_meta_dir = args.mullama_meta_dir
     motion_dir = args.motion_dir
     test_music_dir = args.test_music_dir
-    motion_code_dir = args.motion_code_dir
     visualize_result = args.visualize_result
 
     music_id_list = []
@@ -129,8 +128,6 @@ if __name__ == "__main__":
                 music_id_list.append(data['audio_name'])
                 music_description_list.append(data['conversation'][1]['value'])
 
-    motion_data_list = os.listdir(motion_code_dir)
-    print(f'Number of motion data: {len(motion_data_list)}', file=sys.stderr)
 
     # load model
     model = UniMuMo.from_checkpoint(args.ckpt)
@@ -154,27 +151,9 @@ if __name__ == "__main__":
         waveform = waveform[:sr * len_waveform]
 
         waveform = waveform[None, None, ...]  # [1, 1, 32000 * duration]
-        music_code = model.encode_music(waveform)
-
-        # random choose a motion code
-        motion_name = random.choice(motion_data_list)
-        motion_code = torch.load(pjoin(motion_code_dir, motion_name))  # 4, T
-        motion_length = len_waveform * 50
-        motion_code = motion_code[:, :motion_length]
-        motion_code = motion_code[None, ...].to(music_code.device)
-
-        assert music_code.shape[-1] == motion_code.shape[-1]
 
         with torch.no_grad():
-            print(f'music code shape: {music_code.shape}, motion code shape: {motion_code.shape}', file=sys.stderr)
-
-            batch = {
-                'music_code':  music_code,
-                'motion_code': motion_code,
-                'text': ['']
-            }
-
-            captions = model.music_motion_lm.generate_captions(batch, return_caption_only=True)
+            captions = model.generate_text(waveform=waveform)
 
         # split out music caption from the generated results
         description = captions[0]
@@ -188,9 +167,6 @@ if __name__ == "__main__":
         gt_caption[music_id] = music_description_list[count]
 
         if visualize_result:
-            _, decoded_motion = model.decode_music_motion(music_code, motion_code)
-            joint = decoded_motion['joint']
-
             music_filename = "%s.mp3" % music_id
             music_path = os.path.join(music_save_path, music_filename)
             try:
@@ -198,29 +174,6 @@ if __name__ == "__main__":
             except Exception as e:
                 print(e)
                 continue
-
-            motion_filename = "%s.mp4" % music_id
-            motion_path = pjoin(motion_save_path, motion_filename)
-            try:
-                skel_animation.plot_3d_motion(
-                    motion_path, kinematic_chain, joint.squeeze(), title='None', vbeat=None,
-                    fps=model.motion_fps, radius=4
-                )
-            except Exception as e:
-                print(e)
-                continue
-
-            video_filename = "%s.mp4" % music_id
-            video_path = pjoin(video_save_path, video_filename)
-            try:
-                subprocess.call(f"ffmpeg -i {motion_path} -i {music_path} -c copy {video_path}", shell=True)
-            except Exception as e:
-                print(e)
-                continue
-
-            joint_filename = "%s.npy" % music_id
-            joint_path = pjoin(joint_save_path, joint_filename)
-            np.save(joint_path, joint.squeeze())
 
         count += 1
 
