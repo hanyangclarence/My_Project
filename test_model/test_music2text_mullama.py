@@ -134,10 +134,8 @@ if __name__ == "__main__":
 
         # split out music caption from the generated results
         description = captions[0]
-        print(f'Generated caption: {description} -> ', end='', file=sys.stderr)
-        description = description.split('<separation>')[0]
         description = description.strip()
-        print(description, file=sys.stderr)
+        print(f'Generated caption: [{description}]', file=sys.stderr)
 
         pred_caption[music_id] = description
         gt_caption[music_id] = music_description_list[count]
@@ -153,7 +151,7 @@ if __name__ == "__main__":
 
         count += 1
 
-    json.dump(pred_caption, f_gen)
-    json.dump(gt_caption, f_gt)
+    json.dump(pred_caption, f_gen, indent=4)
+    json.dump(gt_caption, f_gt, indent=4)
     f_gt.close()
     f_gen.close()
