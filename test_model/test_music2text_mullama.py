@@ -135,8 +135,7 @@ if __name__ == "__main__":
         # split out music caption from the generated results
         description = captions[0]
         print(f'Generated caption: {description} -> ', end='', file=sys.stderr)
-        description = description.split('<music_prompt_end>')[0]
-        description = description.split('<music_prompt_start>')[1]
+        description = description.split('<separation>')[0]
         description = description.strip()
         print(description, file=sys.stderr)
 
