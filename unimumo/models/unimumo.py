@@ -244,5 +244,12 @@ class UniMuMo(nn.Module):
     def motion_vec_to_joint(self, vec: torch.Tensor) -> np.ndarray:
         return motion_vec_to_joint(vec=vec, motion_mean=self.motion_mean, motion_std=self.motion_std)
 
+    def motion_feature_to_joint(self, motion_feature: np.ndarray) -> np.ndarray:
+        # motion_feature: [B, T, 263]
+        assert motion_feature.ndim == 3 and motion_feature.shape[-1] == 263
+        return self.motion_vec_to_joint(
+            torch.Tensor(self.normalize_motion(motion_feature))
+        )
+
 
 

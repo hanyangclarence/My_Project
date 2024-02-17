@@ -16,4 +16,18 @@ We start from only changing to fully attention mask in encoder!
     ROUGE Score: 0.3812189555871715
     BERT Score: 0.8964552879333496
 
+    e54:
+    BLEU Score: 0.2665478783590597
+    BLEU-4 Score: 0.16420802537506513
+    METEOR Score: 0.3305566184802281
+    ROUGE Score: 0.376438816174244
+    BERT Score: 0.8956520557403564
+
+    e66:
+    BLEU Score: 0.27179322073797907
+    BLEU-4 Score: 0.158808726119993
+    METEOR Score: 0.3518165103648842
+    ROUGE Score: 0.3848171960642398
+    BERT Score: 0.8971327543258667
+
 # Attempt 15.2 Not using caption from mullama
