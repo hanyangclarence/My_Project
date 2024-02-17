@@ -48,27 +48,11 @@ if __name__ == "__main__":
     )
 
     parser.add_argument(
-        "--motion_code_dir",
-        type=str,
-        required=False,
-        help="The path to motion code. The music is randomly paired with a motion sequence to generate captions.",
-        default='data/motion/aligned_motion_code'
-    )
-
-    parser.add_argument(
         "--mullama_meta_dir",
         type=str,
         required=False,
         help="The path to the directory that contains EvalMusicQA.txt",
         default="/gpfs/u/home/LMCG/LMCGnngn/scratch/yanghan/MU-LLaMA/data",
-    )
-
-    parser.add_argument(
-        "--motion_dir",
-        type=str,
-        required=False,
-        help="The path to motion data dir",
-        default='data/motion',
     )
 
     parser.add_argument(
@@ -100,16 +84,9 @@ if __name__ == "__main__":
     seed_everything(args.seed)
     save_path = args.save_path
     music_save_path = pjoin(save_path, 'music')
-    motion_save_path = pjoin(save_path, 'motion')
-    video_save_path = pjoin(save_path, 'video')
-    joint_save_path = pjoin(save_path, 'joint')
     os.makedirs(save_path, exist_ok=True)
     os.makedirs(music_save_path, exist_ok=True)
-    os.makedirs(motion_save_path, exist_ok=True)
-    os.makedirs(video_save_path, exist_ok=True)
-    os.makedirs(joint_save_path, exist_ok=True)
     mullama_meta_dir = args.mullama_meta_dir
-    motion_dir = args.motion_dir
     test_music_dir = args.test_music_dir
     visualize_result = args.visualize_result
 
