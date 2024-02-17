@@ -154,6 +154,7 @@ if __name__ == "__main__":
         # no text conditioning is provided here
         waveform_gen = model.generate_music_from_motion(
             motion_feature=motion,
+            text_description=['The audio is a pop song with an Italian influence. <separation>'],
             conditional_guidance_scale=guidance_scale
         )
         joint_gen = model.motion_vec_to_joint(
