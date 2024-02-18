@@ -22,7 +22,8 @@ class MusicMotionTextDataset(Dataset):
         music_dataset_name='music4all',
         ignore_file_name='music4all_ignore.txt',
         natural_language_caption_ratio=0.3,
-        use_mullama=True
+        use_mullama=True,
+        humanml3d_only=False,
     ):
         # all data paths
         self.motion_meta_dir = motion_meta_dir
@@ -114,6 +115,13 @@ class MusicMotionTextDataset(Dataset):
                 self.dancedb.append(line.strip())
         print(f'Humanml3d size: {len(self.humanml3d)}, aist size: {len(self.aist)}, dancedb size: {len(self.dancedb)}')
 
+        # use only humanml3d data if speficied
+        if humanml3d_only:
+            self.motion_data = [s for s in self.motion_data if s.split('_!motion_code!_')[-1] in self.humanml3d]
+            music_with_paired_motion = list(set([s.split('_!motion_code!_')[0] for s in self.motion_data]))
+            print(f"Humanml3d only: Total number of motion {len(self.motion_data)}")
+            print(f'Humanml3d only: Total number of music with paired motion data {len(music_with_paired_motion)}')
+
         # load music filenames
         with cs.open(pjoin(self.music_meta_dir, ignore_file_name), "r") as f:
             for line in f.readlines():
@@ -129,6 +137,9 @@ class MusicMotionTextDataset(Dataset):
                 if line.strip() not in music_with_paired_motion:
                     continue
                 self.music_data.append(line.strip())
+        # make sure that all music data have captions
+        self.music_data = [s for s in self.music_data if s in self.music_caption.keys()]
+
         print(f'Total number of music in {split} set: {len(self.music_data)}')
 
     def __len__(self):

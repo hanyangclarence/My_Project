@@ -30,4 +30,6 @@ We start from only changing to fully attention mask in encoder!
     ROUGE Score: 0.3848171960642398
     BERT Score: 0.8971327543258667
 
-# Attempt 15.2 Not using caption from mullama
+# Attempt 15.2: Not using caption from mullama
+
+# Attempt 15.3: Use only Humanml3d as motion training data
