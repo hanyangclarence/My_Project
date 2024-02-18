@@ -60,6 +60,13 @@ We start from only changing to fully attention mask in encoder!
 
 # Attempt 15.2: Not using caption from mullama
 
+    e30:
+    BLEU Score: 0.139395308616235
+    BLEU-4 Score: 0.04742057990664781
+    METEOR Score: 0.176557184747175
+    ROUGE Score: 0.2257973034393317
+    BERT Score: 0.8679806590080261
+
 # Attempt 15.3: Use only Humanml3d as motion training data
     Oh noo.. The motion is totally unrelated
 
