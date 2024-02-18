@@ -126,6 +126,8 @@ class MusicMotionTransformer(pl.LightningModule):
         if len(extra_weight) > 0:
             print(f'Provided ckpt contains extra weight: {extra_weight}')
 
+        music_token_emb = mm_lm_sd['music_token_emb']
+        motion_token_emb = mm_lm_sd['motion_token_emb']
         # remove extra weight
         mm_lm_sd = {k: v for k, v in mm_lm_sd.items() if k in curr_model_dict.keys()}
 
@@ -142,7 +144,10 @@ class MusicMotionTransformer(pl.LightningModule):
             mm_lm_sd[motion_emb_key][2048, :] = mm_lm_sd[motion_emb_key][2049, :]
             mm_lm_sd[motion_emb_key] = mm_lm_sd[motion_emb_key][:2049]
             mm_lm_sd[music_emb_key] = mm_lm_sd[music_emb_key][:2049]
+            mm_lm_sd[music_emb_key] += music_token_emb[None, ...] / 4
+            mm_lm_sd[motion_emb_key] += motion_token_emb[None, ...] / 4
             print(f'{music_emb_key}: {mm_lm_sd[music_emb_key].shape}, {motion_emb_key}: {mm_lm_sd[motion_emb_key].shape}')
+
 
         missing_keys = [k for k in curr_model_dict.keys() if k not in mm_lm_sd.keys()]
         if len(missing_keys) > 0:
