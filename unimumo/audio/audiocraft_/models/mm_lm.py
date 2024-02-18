@@ -334,8 +334,8 @@ class LMModel(StreamingModule):
 
         if mode in ['music_caption', 'motion_caption']:
             # fully attention mask, but no cross attention mask
-            mask[:section_1, :section_1] = True
-            mask[section_1:, section_1:] = True
+            mask[:section_1, :section_1] = ~torch.ones((section_1, section_1), dtype=torch.bool, device=device).triu(1)
+            mask[section_1:, section_1:] = ~torch.ones((section_2, section_2), dtype=torch.bool, device=device).triu(1)
         else:
             assert mode in ['music_motion', 'music2motion', 'motion2music']
             mask[:section_1, :section_1] = ~torch.ones((section_1, section_1), dtype=torch.bool, device=device).triu(1)
