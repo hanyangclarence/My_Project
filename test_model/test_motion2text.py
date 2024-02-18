@@ -146,12 +146,12 @@ if __name__ == "__main__":
                 print(f'motion codes: {motion_codes.shape}')
 
                 batch = {
-                    'text': [''] * motion_codes.shape[0],
+                    'text': ['<separation>'] * motion_codes.shape[0],
                     'music_code': torch.zeros_like(motion_codes, device=device),
                     'motion_code': motion_codes
                 }
 
-                captions = model.music_motion_lm.generate_captions(batch, return_caption_only=True)
+                captions = model.music_motion_lm.generate_captions(batch, return_caption_only=True, mode='motion_caption')
 
             # save the first in a batch
             motion_id_to_save = motion_id_batch[0]

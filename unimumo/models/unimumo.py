@@ -21,6 +21,7 @@ class UniMuMo(nn.Module):
         music_vqvae_weight: tp.Optional[tp.Dict[str, torch.Tensor]] = None,
         motion_vqvae_weight: tp.Optional[tp.Dict[str, torch.Tensor]] = None,
         music_motion_lm_weight: tp.Optional[tp.Dict[str, torch.Tensor]] = None,
+        debug: bool = False
     ):
         super().__init__()
 
@@ -47,8 +48,10 @@ class UniMuMo(nn.Module):
         # load music motion lm
         if not os.path.exists(music_motion_lm_config.model.params.name):
             music_motion_lm_config.model.params.name = "facebook/musicgen-small"
+        if debug:
+            music_motion_lm_config.model.params.debug = True
         self.music_motion_lm = instantiate_from_config(music_motion_lm_config.model)
-        if music_motion_lm_weight is not None:
+        if music_motion_lm_weight is not None and not debug:
             self.music_motion_lm.load_state_dict(music_motion_lm_weight)
         self.music_motion_lm.eval()
 
@@ -57,9 +60,9 @@ class UniMuMo(nn.Module):
         self.motion_fps = self.motion_vqvae.motion_encoder.input_fps
 
     @staticmethod
-    def from_checkpoint(ckpt: str, device: tp.Optional[str] = None) -> 'UniMuMo':
+    def from_checkpoint(ckpt: str, device: tp.Optional[str] = None, debug: bool = False) -> 'UniMuMo':
         model_ckpt = torch.load(ckpt, map_location='cpu')
-        model = UniMuMo(**model_ckpt)
+        model = UniMuMo(**model_ckpt, debug=debug)
 
         if device is None:
             device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
@@ -229,7 +232,7 @@ class UniMuMo(nn.Module):
             mode = 'motion_caption'
 
         batch = {
-            'text': ['<separation>'],
+            'text': ['<separation>'] * music_code.shape[0],
             'music_code': music_code,
             'motion_code': motion_code
         }

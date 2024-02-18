@@ -40,7 +40,7 @@ model:
 data:
   target: train.DataModuleFromConfig
   params:
-    batch_size: 2
+    batch_size: 4
     wrap: True
     num_workers: 4
     train:
@@ -83,7 +83,7 @@ lightning:
         sr: 32000
         motion_fps: 60
         max_video_logged: 120
-        disabled: true
+        disabled: false
   trainer:
     benchmark: True
     devices: 1
