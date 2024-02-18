@@ -78,7 +78,7 @@ def _delete_param(cfg: DictConfig, full_name: str):
 
 def load_mm_lm_model(
     file_or_url_or_id: tp.Union[Path, str], device='cpu', cache_dir: tp.Optional[str] = None,
-    use_autocast: bool = True, debug: bool = False
+    use_autocast: bool = True, debug: bool = False, stage=None
 ):
     pkg = load_lm_model_ckpt(file_or_url_or_id, cache_dir=cache_dir)
     cfg = OmegaConf.create(pkg['xp.cfg'])
@@ -95,6 +95,8 @@ def load_mm_lm_model(
     if debug:
         cfg.transformer_lm.num_layers = 1
 
+    cfg.transformer_lm.stage = stage
+
     # set to use our own attention mask instead of the default causal attention mask
     cfg.transformer_lm.causal = False
 
@@ -110,11 +112,19 @@ def load_mm_lm_model(
         if k.startswith('motion_emb.'):
             music_emb_key = k.replace('motion_', '')
             new_dict[k] = pretrained_dict[music_emb_key].clone()
+            print(f'Init {k} with {music_emb_key}')
     # initialize motion mlp with the same weight as original mlp
     for k in my_model_dict.keys():
         if 'linear1_motion' in k or 'linear2_motion' in k or 'norm1_motion' in k or 'norm2_motion' in k:
             original_key_name = k.replace('_motion', '')
             new_dict[k] = pretrained_dict[original_key_name].clone()
+            print(f'Init {k} with {original_key_name}')
+    # initialize the captioning self-attn module with corresponding weight
+    for k in my_model_dict.keys():
+        if 'captioning_self_attn' in k:
+            original_key_name = k.replace('captioning_', '')
+            new_dict[k] = pretrained_dict[original_key_name].clone()
+            print(f'Init {k} with {original_key_name}')
 
     my_model_dict.update(new_dict)
 

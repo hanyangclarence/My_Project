@@ -530,7 +530,7 @@ class StreamingTransformerLayer(nn.TransformerEncoderLayer):
                  qk_layer_norm: bool = False, qk_layer_norm_cross: bool = False,
                  cross_attention: bool = False, layer_scale: tp.Optional[float] = None,
                  rope: tp.Optional[RotaryEmbedding] = None, attention_dropout: tp.Optional[float] = None,
-                 kv_repeat: int = 1, norm: str = 'layer_norm', device=None, dtype=None, **kwargs):
+                 kv_repeat: int = 1, norm: str = 'layer_norm', device=None, dtype=None, stage=None, **kwargs):
         super().__init__(d_model, num_heads, dim_feedforward, dropout,
                          device=device, dtype=dtype, batch_first=True, **kwargs)
         factory_kwargs = {'device': device, 'dtype': dtype}
@@ -547,6 +547,16 @@ class StreamingTransformerLayer(nn.TransformerEncoderLayer):
         self.self_attn: StreamingMultiheadAttention = StreamingMultiheadAttention(
             causal=causal, past_context=past_context, rope=rope, qk_layer_norm=qk_layer_norm,
             kv_repeat=kv_repeat, **attn_kwargs, **factory_kwargs)  # type: ignore
+
+        assert stage in ['train_music_motion', 'train_caption']
+        self.stage = stage
+        self.captioning_self_attn = None
+        if self.stage == 'train_caption':
+            print(f'In train captioning stage, add new self-attn module')
+            self.captioning_self_attn: StreamingMultiheadAttention = StreamingMultiheadAttention(
+            causal=causal, past_context=past_context, rope=rope, qk_layer_norm=qk_layer_norm,
+            kv_repeat=kv_repeat, **attn_kwargs, **factory_kwargs)
+
         # Redefine feedforward layers to expose bias parameter
         self.linear1 = nn.Linear(d_model, dim_feedforward, bias=bias_ff, **factory_kwargs)
         self.linear2 = nn.Linear(dim_feedforward, d_model, bias=bias_ff, **factory_kwargs)
@@ -597,40 +607,79 @@ class StreamingTransformerLayer(nn.TransformerEncoderLayer):
         x = self.linear2_motion(self.dropout(self.activation(self.linear1_motion(x))))
         return self.dropout2(x)
 
+    def _captioning_sa_block(self, x: Tensor,
+                  attn_mask: tp.Optional[Tensor], key_padding_mask: tp.Optional[Tensor]) -> Tensor:
+        x = self.captioning_self_attn(x, x, x,
+                           attn_mask=attn_mask,
+                           key_padding_mask=key_padding_mask,
+                           need_weights=False)[0]
+        return self.dropout1(x)
+
     def forward(self, src: torch.Tensor, src_mask: tp.Optional[torch.Tensor] = None,  # type: ignore
                 src_key_padding_mask: tp.Optional[torch.Tensor] = None,
                 cross_attention_src: tp.Optional[torch.Tensor] = None, 
-                cross_attn_mask: tp.Optional[torch.Tensor] = None):
-        if self.cross_attention is None:
-            assert cross_attention_src is None and cross_attn_mask is None
+                cross_attn_mask: tp.Optional[torch.Tensor] = None,
+                stage: str = None):
+        if stage == 'train_music_motion':
+            if self.cross_attention is None:
+                assert cross_attention_src is None and cross_attn_mask is None
+            else:
+                assert cross_attention_src is not None and cross_attn_mask is not None
         else:
-            assert cross_attention_src is not None and cross_attn_mask is not None
+            assert stage == 'train_caption'
         x = src
         S = x.shape[1]
-        if self.norm_first:
-            x = x + self.layer_scale_1(
-                self._sa_block(self.norm1(x), src_mask, src_key_padding_mask))
-            if cross_attention_src is not None:
-                x = x + self.layer_scale_cross(
-                    self._cross_attention_block(
-                        self.norm_cross(x), cross_attention_src, cross_attn_mask))
-            x_music = x[:, :S//2]
-            x_motion = x[:, S//2:]
-            x_music = x_music + self.layer_scale_2(self._ff_block(self.norm2(x_music)))
-            x_motion = x_motion + self.layer_scale_2(self._ff_block_motion(self.norm2_motion(x_motion)))
-            x = torch.cat((x_music, x_motion), dim=1)
+        print(f'transforler layer forward in stage {stage}')
+        if stage == 'train_music_motion':
+            if self.norm_first:
+                x = x + self.layer_scale_1(
+                    self._sa_block(self.norm1(x), src_mask, src_key_padding_mask))
+                if cross_attention_src is not None:
+                    x = x + self.layer_scale_cross(
+                        self._cross_attention_block(
+                            self.norm_cross(x), cross_attention_src, cross_attn_mask))
+                x_music = x[:, :S//2]
+                x_motion = x[:, S//2:]
+                x_music = x_music + self.layer_scale_2(self._ff_block(self.norm2(x_music)))
+                x_motion = x_motion + self.layer_scale_2(self._ff_block_motion(self.norm2_motion(x_motion)))
+                x = torch.cat((x_music, x_motion), dim=1)
+            else:
+                x = self.norm1(x + self.layer_scale_1(
+                    self._sa_block(x, src_mask, src_key_padding_mask)))
+                if cross_attention_src is not None:
+                    x = self.norm_cross(
+                        x + self.layer_scale_cross(
+                            self._cross_attention_block(src, cross_attention_src, cross_attn_mask)))
+                x_music = x[:, :S // 2]
+                x_motion = x[:, S // 2:]
+                x_music = self.norm2(x_music + self.layer_scale_2(self._ff_block(x_music)))
+                x_motion = self.norm2_motion(x_motion + self.layer_scale_2(self._ff_block_motion(x_motion)))
+                x = torch.cat((x_music, x_motion), dim=1)
         else:
-            x = self.norm1(x + self.layer_scale_1(
-                self._sa_block(x, src_mask, src_key_padding_mask)))
-            if cross_attention_src is not None:
-                x = self.norm_cross(
-                    x + self.layer_scale_cross(
-                        self._cross_attention_block(src, cross_attention_src, cross_attn_mask)))
-            x_music = x[:, :S // 2]
-            x_motion = x[:, S // 2:]
-            x_music = self.norm2(x_music + self.layer_scale_2(self._ff_block(x_music)))
-            x_motion = self.norm2_motion(x_motion + self.layer_scale_2(self._ff_block_motion(x_motion)))
-            x = torch.cat((x_music, x_motion), dim=1)
+            if self.norm_first:
+                x = x + self.layer_scale_1(
+                    self._captioning_sa_block(self.norm1(x), src_mask, src_key_padding_mask))
+                if cross_attention_src is not None:
+                    x = x + self.layer_scale_cross(
+                        self._cross_attention_block(
+                            self.norm_cross(x), cross_attention_src, cross_attn_mask))
+                x_music = x[:, :S//2]
+                x_motion = x[:, S//2:]
+                x_music = x_music + self.layer_scale_2(self._ff_block(self.norm2(x_music)))
+                x_motion = x_motion + self.layer_scale_2(self._ff_block_motion(self.norm2_motion(x_motion)))
+                x = torch.cat((x_music, x_motion), dim=1)
+            else:
+                x = self.norm1(x + self.layer_scale_1(
+                    self._captioning_sa_block(x, src_mask, src_key_padding_mask)))
+                if cross_attention_src is not None:
+                    x = self.norm_cross(
+                        x + self.layer_scale_cross(
+                            self._cross_attention_block(src, cross_attention_src, cross_attn_mask)))
+                x_music = x[:, :S // 2]
+                x_motion = x[:, S // 2:]
+                x_music = self.norm2(x_music + self.layer_scale_2(self._ff_block(x_music)))
+                x_motion = self.norm2_motion(x_motion + self.layer_scale_2(self._ff_block_motion(x_motion)))
+                x = torch.cat((x_music, x_motion), dim=1)
         return x
 
 
@@ -688,6 +737,8 @@ class StreamingTransformer(StreamingModule):
         self.positional_scale = positional_scale
         self.weight_decay = weight_decay
         self.lr = lr
+
+        self.stage = kwargs['stage']
 
         assert positional_embedding in ['sin', 'rope', 'sin_rope']
         self.rope: tp.Optional[RotaryEmbedding] = None

@@ -35,9 +35,7 @@ class TextGenerator(nn.Module):
     def forward(self, texts: Sequence[str], music_motion_context: torch.Tensor, mode: str) -> torch.Tensor:
         encoded = self.tokenizer(
             texts,
-            truncation=True,
-            max_length=self.max_length,
-            padding="max_length",
+            padding=True,
             return_tensors="pt",
             return_attention_mask=True
         )

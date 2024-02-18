@@ -179,7 +179,7 @@ class LMModel(StreamingModule):
         src_mask: tp.Optional[torch.Tensor] = None,
         condition_tensors: tp.Optional[ConditionTensors] = None,
         cross_attn_mask: tp.Optional[torch.Tensor] = None,
-        return_last_layer: bool = False
+        get_feature: bool = False
     ) -> tp.Union[tp.Tuple[torch.Tensor, torch.Tensor], torch.Tensor]:
         B, K, S = sequence.shape
         assert K == self.num_codebooks, "Sequence shape must match the specified number of codebooks"
@@ -202,14 +202,15 @@ class LMModel(StreamingModule):
 
         input_, cross_attention_input = self.fuser(input_, condition_tensors)
 
+        stage = 'train_caption' if get_feature else 'train_music_motion'
         out = self.transformer(
             input_, separate_positional_encoding=True, cross_attention_src=cross_attention_input, src_mask=src_mask,
-            cross_attn_mask=cross_attn_mask
+            cross_attn_mask=cross_attn_mask, stage=stage
         )
         if self.out_norm:
             out = self.out_norm(out)
 
-        if return_last_layer:
+        if get_feature:
             return out  # [B, S, dim]
 
         music_logits = torch.stack([self.linears[k](out[:, :S // 2]) for k in range(K)], dim=1)  # [B, K, S/2, card]
@@ -286,7 +287,6 @@ class LMModel(StreamingModule):
         mode: str,
         condition_tensors: tp.Optional[ConditionTensors] = None
     ) -> torch.Tensor:
-        self.eval()
         # prepare input sequence
         B, K, T_music = music_codes.shape
         T_motion = motion_codes.shape[-1]
@@ -323,7 +323,7 @@ class LMModel(StreamingModule):
         # apply model on pattern sequence
         music_motion_context = self(
             sequence_codes, conditions, src_mask=self_attn_mask, cross_attn_mask=cross_attn_mask,
-            condition_tensors=condition_tensors, return_last_layer=True
+            condition_tensors=condition_tensors, get_feature=True
         )  # [B, S, dim]
 
         return music_motion_context

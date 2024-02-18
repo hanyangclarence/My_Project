@@ -57,7 +57,7 @@ class MusicMotionTransformer(pl.LightningModule):
         self.motion_weight = motion_weight
 
         # load music motion transformer
-        self.model: LMModel = self.get_pretrained_lm(name, use_autocast=False, debug=debug)
+        self.model: LMModel = self.get_pretrained_lm(name, use_autocast=False, debug=debug, stage=stage)
 
         # load music motion captioner
         self.text_model: TextGenerator = instantiate_from_config(text_model_config)
@@ -91,7 +91,7 @@ class MusicMotionTransformer(pl.LightningModule):
     def get_pretrained_lm(
         self,
         name: str = 'facebook/musicgen-melody',
-        device=None, use_autocast=False, debug=False
+        device=None, use_autocast=False, debug=False, stage='train_music_motion'
     ) -> LMModel:
         if device is None:
             if torch.cuda.device_count():
@@ -106,7 +106,9 @@ class MusicMotionTransformer(pl.LightningModule):
                 f"Please use full pre-trained id instead: facebook/musicgen-{name}")
             name = _HF_MODEL_CHECKPOINTS_MAP[name]
 
-        lm = load_mm_lm_model(name, device=device, use_autocast=use_autocast, debug=debug)
+        assert stage in ['train_music_motion', 'train_caption']
+
+        lm = load_mm_lm_model(name, device=device, use_autocast=use_autocast, debug=debug, stage=stage)
         if 'self_wav' in lm.condition_provider.conditioners:
             lm.condition_provider.conditioners['self_wav'].match_len_on_eval = True
 
@@ -118,7 +120,30 @@ class MusicMotionTransformer(pl.LightningModule):
         pretrained_sd = torch.load(ckpt, map_location='cpu')['state_dict']
         mm_lm_sd = {k: v for k, v in pretrained_sd.items() if k.startswith("model.")}  # find keys with prefix "model."
         mm_lm_sd = {k[len("model."):]: v for k, v in mm_lm_sd.items()}  # remove the prefix "model."
-        self.model.load_state_dict(mm_lm_sd)
+
+        # load part of the weight in current model that are contained in the given ckpt
+        curr_model_dict = self.model.state_dict()
+
+        extra_weight = [k for k in mm_lm_sd.keys() if k not in curr_model_dict.keys()]
+        if len(extra_weight) > 0:
+            print(f'Provided ckpt contains extra weight: {extra_weight}')
+
+        # remove extra weight
+        mm_lm_sd = {k: v for k, v in mm_lm_sd.items() if k in curr_model_dict.keys()}
+
+        # init captioning self-attn with corresponding weight
+        for k in curr_model_dict.keys():
+            if 'captioning_self_attn' in k:
+                original_key_name = k.replace('captioning_', '')
+                mm_lm_sd[k] = mm_lm_sd[original_key_name].clone()
+                print(f'Init {k} with {original_key_name}')
+
+        missing_keys = [k for k in curr_model_dict.keys() if k not in mm_lm_sd.keys()]
+        if len(missing_keys) > 0:
+            print(f'Provided ckpt misses weight: {missing_keys}')
+
+        curr_model_dict.update(mm_lm_sd)
+        self.model.load_state_dict(curr_model_dict)
 
     def setup_trainable_parameters(self):
         if self.stage == 'train_music_motion':
@@ -128,7 +153,10 @@ class MusicMotionTransformer(pl.LightningModule):
         elif self.stage == 'train_caption':
             # freeze all parameters in music-motion transformer model
             for name, parameter in self.model.named_parameters():
-                parameter.requires_grad = False
+                if 'captioning_self_attn' in name:
+                    parameter.requires_grad = True
+                else:
+                    parameter.requires_grad = False
             # train all parameters in text generation model
             for name, parameter in self.text_model.named_parameters():
                 parameter.requires_grad = True
@@ -240,10 +268,9 @@ class MusicMotionTransformer(pl.LightningModule):
             null_text_condition = self.prepare_text_condition(descriptions, mode='music_motion')
 
             # get music motion features using music motion LM
-            with torch.no_grad():
-                music_motion_context = self.model.get_music_motion_context(
-                    music_code, motion_code, [], mode, condition_tensors=null_text_condition
-                )
+            music_motion_context = self.model.get_music_motion_context(
+                music_code, motion_code, [], mode, condition_tensors=null_text_condition
+            )
 
             text_loss = self.text_model.forward(text_cond, music_motion_context, mode)
 
@@ -302,10 +329,9 @@ class MusicMotionTransformer(pl.LightningModule):
             null_text_condition = self.prepare_text_condition(descriptions, mode='music_motion')
 
             # get music motion features using music motion LM
-            with torch.no_grad():
-                music_motion_context = self.model.get_music_motion_context(
-                    music_code, motion_code, [], mode, condition_tensors=null_text_condition
-                )
+            music_motion_context = self.model.get_music_motion_context(
+                music_code, motion_code, [], mode, condition_tensors=null_text_condition
+            )
 
             text_loss = self.text_model.forward(text_cond, music_motion_context, mode)
 
@@ -360,7 +386,7 @@ class MusicMotionTransformer(pl.LightningModule):
         attributes_motion = self.model.att_dropout(attributes_motion)
 
         # print drop out results for debug
-        print(f"{mode}: {self.model.training}, [{attributes_music[0].text['description']}]++[{attributes_motion[0].text['description']}]")
+        # print(f"{mode}: {self.model.training}, [{attributes_music[0].text['description']}]++[{attributes_motion[0].text['description']}]")
 
         tokenized_music = self.model.condition_provider.tokenize(attributes_music, device=self.device)
         condition_tensors_music = self.model.condition_provider(tokenized_music)
@@ -393,6 +419,8 @@ class MusicMotionTransformer(pl.LightningModule):
                 return_desc.append(desc.split('<separation>')[0].strip())
             else:
                 return_desc.append(desc.split('<separation>')[-1].strip())
+        
+        print(f'{mode}: {return_desc[0]}')
         return return_desc
 
 

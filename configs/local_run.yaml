@@ -83,7 +83,7 @@ lightning:
         sr: 32000
         motion_fps: 60
         max_video_logged: 120
-        disabled: false
+        disabled: True
   trainer:
     benchmark: True
     devices: 1
