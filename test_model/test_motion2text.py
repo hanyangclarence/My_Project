@@ -163,7 +163,7 @@ if __name__ == "__main__":
             try:
                 skel_animation.plot_3d_motion(
                     motion_path, kinematic_chain, joint_to_save, title='None', vbeat=None,
-                    fps=model.motion_fps, radius=4
+                    fps=20, radius=4
                 )
             except Exception as e:
                 print(e)
