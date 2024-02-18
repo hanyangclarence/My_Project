@@ -180,6 +180,7 @@ if __name__ == "__main__":
             # write generated descriptions
             for i in range(len(captions)):
                 description = captions[i]
+                description = description.replace('The dance is that', '')
                 description = description.strip().capitalize()
 
                 result_dict[motion_id_batch[i]] = description
