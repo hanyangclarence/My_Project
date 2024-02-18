@@ -168,7 +168,12 @@ class MusicMotionTextDataset(Dataset):
         # music text prompt construction
         if random.uniform(0, 1) < self.natural_language_caption_ratio:
             # use llama caption
-            music_text_prompt = random.choice(self.music_caption[music_id])
+            try:
+                music_text_prompt = random.choice(self.music_caption[music_id])
+            except Exception as e:
+                print(music_id)
+                print(self.music_caption[music_id])
+                print(e)
         else:
             # use constructed text prompt
             tag_list = self.text_df.loc[music_id, 'tags']
