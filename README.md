@@ -67,6 +67,13 @@ We start from only changing to fully attention mask in encoder!
     ROUGE Score: 0.2257973034393317
     BERT Score: 0.8679806590080261
 
+    e42:
+    BLEU Score: 0.13728777938217024
+    BLEU-4 Score: 0.047076029084690225
+    METEOR Score: 0.16681262528182988
+    ROUGE Score: 0.22839277596104776
+    BERT Score: 0.8672478795051575
+
 # Attempt 15.3: Use only Humanml3d as motion training data
     Oh noo.. The motion is totally unrelated
 
