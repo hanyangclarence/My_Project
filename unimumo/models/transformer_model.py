@@ -118,7 +118,38 @@ class MusicMotionTransformer(pl.LightningModule):
         pretrained_sd = torch.load(ckpt, map_location='cpu')['state_dict']
         mm_lm_sd = {k: v for k, v in pretrained_sd.items() if k.startswith("model.")}  # find keys with prefix "model."
         mm_lm_sd = {k[len("model."):]: v for k, v in mm_lm_sd.items()}  # remove the prefix "model."
-        self.model.load_state_dict(mm_lm_sd)
+
+        # load part of the weight in current model that are contained in the given ckpt
+        curr_model_dict = self.model.state_dict()
+
+        extra_weight = [k for k in mm_lm_sd.keys() if k not in curr_model_dict.keys()]
+        if len(extra_weight) > 0:
+            print(f'Provided ckpt contains extra weight: {extra_weight}')
+
+        # remove extra weight
+        mm_lm_sd = {k: v for k, v in mm_lm_sd.items() if k in curr_model_dict.keys()}
+
+        # init captioning self-attn with corresponding weight
+        for k in curr_model_dict.keys():
+            if 'linear1_motion' in k or 'linear2_motion' in k or 'norm1_motion' in k or 'norm2_motion' in k:
+                original_key_name = k.replace('_motion', '')
+                mm_lm_sd[k] = mm_lm_sd[original_key_name].clone()
+                print(f'Init {k} with {original_key_name}')
+        for i in range(4):
+            music_emb_key = f'emb.{i}.weight'
+            motion_emb_key = f'motion_emb.{i}.weight'
+            mm_lm_sd[motion_emb_key] = mm_lm_sd[music_emb_key].clone()
+            mm_lm_sd[motion_emb_key][2048, :] = mm_lm_sd[motion_emb_key][2049, :]
+            mm_lm_sd[motion_emb_key] = mm_lm_sd[motion_emb_key][:2049]
+            mm_lm_sd[music_emb_key] = mm_lm_sd[music_emb_key][:2049]
+            print(f'{music_emb_key}: {mm_lm_sd[music_emb_key].shape}, {motion_emb_key}: {mm_lm_sd[motion_emb_key].shape}')
+
+        missing_keys = [k for k in curr_model_dict.keys() if k not in mm_lm_sd.keys()]
+        if len(missing_keys) > 0:
+            print(f'Provided ckpt misses weight: {missing_keys}')
+
+        curr_model_dict.update(mm_lm_sd)
+        self.model.load_state_dict(curr_model_dict)
 
     def setup_trainable_parameters(self):
         if self.stage == 'train_music_motion':
