@@ -65,7 +65,7 @@ class MusicMotionTextDataset(Dataset):
                         continue
                     self.music_caption[k].append(v)
         # remove empty caption
-        self.music_caption = {k: v for k, v in self.music_caption if len(v) > 0}
+        self.music_caption = {k: v for k, v in self.music_caption.items() if len(v) > 0}
         # load humanml3d text descriptions
         humanml3d_text_dir = pjoin(self.motion_meta_dir, 'humanml3d_text_description')
         humanml3d_descriptions = os.listdir(humanml3d_text_dir)
