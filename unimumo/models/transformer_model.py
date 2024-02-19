@@ -260,8 +260,8 @@ class MusicMotionTransformer(pl.LightningModule):
             batch_size = len(text_cond)
 
             # choose training mode and then dropout features
-            mode = random.choice(['music_caption', 'motion_caption'])
-            text_cond = self.prepare_text_generation_target(text_cond, mode)
+            mode = None
+            # mode is useless
 
             # use null condition for music motion LM
             descriptions: tp.List[str] = ['<separation>'] * batch_size
@@ -321,8 +321,7 @@ class MusicMotionTransformer(pl.LightningModule):
             batch_size = len(text_cond)
 
             # choose a mode and then dropout features
-            mode = random.choice(['music_caption', 'motion_caption'])
-            text_cond = self.prepare_text_generation_target(text_cond, mode)
+            mode = None
 
             # use null condition for music motion LM
             descriptions: tp.List[str] = ['<separation>'] * batch_size
@@ -411,19 +410,6 @@ class MusicMotionTransformer(pl.LightningModule):
 
         return condition
 
-    def prepare_text_generation_target(self, descriptions: tp.List[str], mode: tp.Optional[str]) -> tp.List[str]:
-        assert mode in ['music_caption', 'motion_caption']
-        return_desc = []
-        for desc in descriptions:
-            if mode == 'music_caption':
-                return_desc.append(desc.split('<separation>')[0].strip())
-            else:
-                return_desc.append(desc.split('<separation>')[-1].strip())
-        
-        print(f'{mode}: {return_desc[0]}')
-        return return_desc
-
-
     def generate_sample(
         self,
         batch: tp.Dict[str, tp.Union[torch.LongTensor, tp.List[str]]],
@@ -474,7 +460,6 @@ class MusicMotionTransformer(pl.LightningModule):
     def generate_captions(
         self,
         batch: tp.Dict[str, tp.Union[torch.LongTensor, tp.List[str]]],
-        mode: tp.Optional[str] = None,
         return_caption_only: bool = False
     ) -> tp.Union[tp.List[str], tp.Tuple[tp.List[str], torch.LongTensor, torch.LongTensor]]:
         music_code, motion_code, text_cond = batch[self.music_key], batch[self.motion_key], batch[self.text_cond_key]
@@ -482,9 +467,7 @@ class MusicMotionTransformer(pl.LightningModule):
         descriptions: tp.List[str] = ['<separation>'] * batch_size
         null_text_condition = self.prepare_text_condition(descriptions, mode='music_motion')  # use null condition
 
-        if mode is None:
-            mode = random.choice(['music_caption', 'motion_caption'])
-
+        mode = None
         music_motion_context = self.model.get_music_motion_context(
             music_code, motion_code, [], mode, condition_tensors=null_text_condition
         )

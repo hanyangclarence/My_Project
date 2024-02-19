@@ -304,12 +304,6 @@ class LMModel(StreamingModule):
             motion_codes, self.special_token_id, keep_only_valid_steps=True
         )
 
-        # fill unused codes with special_token_id
-        if mode == 'music_caption':
-            motion_sequence_codes[:] = self.special_token_id
-        if mode == 'motion_caption':
-            music_sequence_codes[:] = self.special_token_id
-
         # concat music sequence and motion sequence in time dimension
         sequence_codes = torch.cat((music_sequence_codes, motion_sequence_codes), dim=-1)
 
@@ -332,16 +326,10 @@ class LMModel(StreamingModule):
         device = next(iter(self.parameters())).device
         mask = torch.zeros((section_1 + section_2, section_1 + section_2), dtype=torch.bool, device=device)
 
-        if mode in ['music_caption', 'motion_caption']:
-            # fully attention mask, but no cross attention mask
-            mask[:section_1, :section_1] = True
-            mask[section_1:, section_1:] = True
-        else:
-            assert mode in ['music_motion', 'music2motion', 'motion2music']
-            mask[:section_1, :section_1] = ~torch.ones((section_1, section_1), dtype=torch.bool, device=device).triu(1)
-            mask[section_1:section_1 + section_2, :section_1] = ~torch.ones((section_2, section_1), dtype=torch.bool, device=device).triu(1)
-            mask[:section_1, section_1:section_1 + section_2] = ~torch.ones((section_1, section_2), dtype=torch.bool, device=device).triu(1)
-            mask[section_1:section_1 + section_2, section_1:section_1 + section_2] = ~torch.ones((section_2, section_2), dtype=torch.bool, device=device).triu(1)
+        mask[:section_1, :section_1] = ~torch.ones((section_1, section_1), dtype=torch.bool, device=device).triu(1)
+        mask[section_1:section_1 + section_2, :section_1] = ~torch.ones((section_2, section_1), dtype=torch.bool, device=device).triu(1)
+        mask[:section_1, section_1:section_1 + section_2] = ~torch.ones((section_1, section_2), dtype=torch.bool, device=device).triu(1)
+        mask[section_1:section_1 + section_2, section_1:section_1 + section_2] = ~torch.ones((section_2, section_2), dtype=torch.bool, device=device).triu(1)
 
         mask = torch.where(mask, 0., float('-inf'))
         return mask
