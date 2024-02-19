@@ -32,6 +32,9 @@ class TextGenerator(nn.Module):
         labels = encoded["input_ids"].to(device)
         decoder_attention_mask = encoded["attention_mask"].to(device)
 
+        if labels.shape[-1] > 300:
+            print('!!!!!!!!', texts)
+
         music_motion_context = self.context_proj(music_motion_context)
         music_motion_context = BaseModelOutput(music_motion_context)
 
