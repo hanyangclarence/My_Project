@@ -10,6 +10,7 @@ model:
     length_single_modal: 500
     feature_frame_rate: 50
 
+    stage: 'train_caption'
     monitor: "val/loss"
 
     generation_params:
