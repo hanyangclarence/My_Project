@@ -175,7 +175,7 @@ if __name__ == "__main__":
             description = description.strip().capitalize()
 
             result_dict[motion_id] = description
-            print(f'{motion_id}\t{description}', file=sys.stderr)
+            print(f'\t\t\t\t{motion_id}\t{description}', file=sys.stderr)
 
             count += batch_size
 
