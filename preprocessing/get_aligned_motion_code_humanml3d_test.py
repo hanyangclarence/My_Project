@@ -97,7 +97,7 @@ def main(args):
         # check whether the music has already been paired
         generated_motion_list = os.listdir(motion_feature_save_dir)
         generated_motion_list = [s.split('.')[0] for s in generated_motion_list]
-        generated_motion_list = [f for f in generated_motion_list if f.split('_!motion_code!_')[-1] == motion_id]
+        generated_motion_list = [f for f in generated_motion_list if f.split('_!humanml3d_test!_')[-1] == motion_id]
         if len(generated_motion_list) > 0:
             print(f'{data_idx + 1}/{len(motion_data)} already exists!', file=sys.stderr)
             continue
