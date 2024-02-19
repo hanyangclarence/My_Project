@@ -62,7 +62,7 @@ if __name__ == "__main__":
             if num_split != 777:
                 f.write(f'srun {command} ' + '--start %.3f --end %.3f\n\n' % (start_ratio, end_ratio))
             else:
-                f.write(f'srun {command}')
+                f.write(f'srun {command}\n')
 
         os.system('cat run_test_jobs.sh')
         os.system('sbatch run_test_jobs.sh')
