@@ -198,7 +198,7 @@ def main(args):
         motion_code = model.quantizer.encode(motion_emb)
         motion_token = motion_code.squeeze()
 
-        print(f'motion shape {motion.shape}, feature shape {motion_token.shape}', end='; ')
+        print(f'motion shape {motion.shape}, feature shape {motion_token.shape}', file=sys.stderr)
         motion_token = motion_token.cpu()
 
         motion_token_save_path = pjoin(motion_feature_save_dir, music_id + f'_!motion_code!_{motion_id}.pth')
