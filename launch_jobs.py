@@ -11,7 +11,7 @@ if __name__ == "__main__":
         "--num_split",
         type=int,
         required=False,
-        default=777
+        default=1
     )
 
     parser.add_argument(
@@ -59,15 +59,17 @@ if __name__ == "__main__":
                     'ulimit -s unlimited\n\n')
             f.write('export NODELIST=nodelist.$\n'
                     'srun -l bash -c \'hostname\' |  sort -k 2 -u | awk -vORS=, \'{print $2":4"}\' | sed \'s/,$//\' > $NODELIST\n\n')
-            if num_split != 777:
+            if num_split != 1:
                 f.write(f'srun {command} ' + '--start %.3f --end %.3f\n\n' % (start_ratio, end_ratio))
             else:
-                f.write(f'srun {command}')
+                f.write(f'srun {command}\n\n')
 
         os.system('cat run_test_jobs.sh')
         os.system('sbatch run_test_jobs.sh')
-        time.sleep(10)
         start_ratio += increment
         job_count += 1
+
+        if start_ratio < 1.0 - 1e-4:
+            time.sleep(10)
 
     os.system('rm run_test_jobs.sh')
