@@ -52,7 +52,7 @@ if __name__ == "__main__":
         type=str,
         required=False,
         help="The path to motion code. The music is randomly paired with a motion sequence to generate captions.",
-        default='data/motion/aligned_motion_code'
+        default='data/motion/aligned_motion_code_music4all_60hz'
     )
 
     parser.add_argument(
