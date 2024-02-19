@@ -83,14 +83,15 @@ def main(args):
                 if os.path.exists(pjoin(feature_dir, line.strip() + '.pth')):
                     music_data.append(line.strip())
 
-    start_idx = int(args.start * len(music_data))
-    end_idx = int(args.end * len(music_data))
-    music_data = music_data[start_idx:end_idx]
+    start_idx = int(args.start * len(motion_data))
+    end_idx = int(args.end * len(motion_data))
+    motion_data = motion_data[start_idx:end_idx]
 
     print(f'total music: {len(music_data)}', file=sys.stderr)
     print(f'total motion: {len(motion_data)}', file=sys.stderr)
     print(music_data[:10])
     print(motion_data[:10])
+    print(f'start: {start_idx}, end: {end_idx}', file=sys.stderr)
 
     for data_idx, motion_id in enumerate(motion_data):
         # check whether the music has already been paired
