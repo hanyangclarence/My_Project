@@ -127,6 +127,7 @@ class Encoder(nn.Module):
     def forward(self, x):
         input_T = x.shape[-1]
         target_T = int(input_T / self.input_fps * self.rvq_fps)
+        print(f'!!!{target_T}, round: {round(input_T / self.input_fps * self.rvq_fps)}')
         x = nn.functional.interpolate(x, size=target_T, mode='linear')
 
         x = self.init_conv(x)
