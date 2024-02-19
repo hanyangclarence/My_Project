@@ -308,9 +308,7 @@ class LMModel(StreamingModule):
         sequence_codes = torch.cat((music_sequence_codes, motion_sequence_codes), dim=-1)
 
         # prepare self-attention mask
-        self_attn_mask = self.get_self_attn_mask(
-            music_sequence_codes.shape[-1], motion_sequence_codes.shape[-1], mode=mode
-        )
+        self_attn_mask = self.get_self_attn_mask(music_sequence_codes.shape[-1], motion_sequence_codes.shape[-1], mode)
         # prepare cross-attention mask for conditions
         cross_attn_mask = torch.where(condition_tensors['description'][-1], 0., float('-inf'))
 
