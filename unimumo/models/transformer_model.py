@@ -192,7 +192,8 @@ class MusicMotionTransformer(pl.LightningModule):
 
             text_loss = self.text_model(text_cond, music_motion_context)
 
-            self.log("train/text_loss", text_loss, prog_bar=True, logger=True, on_step=True, on_epoch=False)
+            self.log("train/text_loss", text_loss, prog_bar=True, logger=True, on_step=True, on_epoch=False, sync_dist=True)
+            self.log("train/text_loss_no_sync", text_loss, prog_bar=True, logger=True, on_step=True, on_epoch=False)
 
             optimizer = self.optimizers().optimizer
             lr_scheduler = self.lr_schedulers()
@@ -250,7 +251,8 @@ class MusicMotionTransformer(pl.LightningModule):
 
             text_loss = self.text_model(text_cond, music_motion_context)
 
-            self.log("val/text_loss", text_loss, prog_bar=True, logger=True, on_step=True, on_epoch=True)
+            self.log("val/text_loss", text_loss, prog_bar=True, logger=True, on_step=True, on_epoch=True, sync_dist=True)
+            self.log("val/text_loss_no_sync", text_loss, prog_bar=True, logger=True, on_step=True, on_epoch=True)
 
     def compute_cross_entropy(
         self, logits: torch.Tensor, targets: torch.LongTensor, mask: torch.Tensor
