@@ -25,8 +25,7 @@ from unimumo.motion import motion_process
 from unimumo.util import load_model_from_config
 
 
-# This one modified from get_aligned_motion_code.py by encoding motion only, and not including
-# a zero waveform. This is used to extract code using the independent motion vqvae.
+# randomly pair each music with several aligned motion
 
 
 def main(args):
@@ -253,7 +252,9 @@ def main(args):
 
             motion = motion[None, ...]
 
-            motion_emb = model.encode(motion.to(device))
+            zero_waveform = torch.zeros_like(waveform)
+
+            music_emb, motion_emb = model.encode(zero_waveform.to(device), motion.to(device))
             motion_code = model.quantizer.encode(motion_emb)
             motion_token = motion_code.squeeze()
 
