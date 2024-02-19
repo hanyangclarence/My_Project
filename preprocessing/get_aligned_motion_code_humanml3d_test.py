@@ -87,8 +87,8 @@ def main(args):
     end_idx = int(args.end * len(music_data))
     music_data = music_data[start_idx:end_idx]
 
-    print(f'total music: {len(music_data)}')
-    print(f'total motion: {len(motion_data)}')
+    print(f'total music: {len(music_data)}', file=sys.stderr)
+    print(f'total motion: {len(motion_data)}', file=sys.stderr)
     print(music_data[:10])
     print(motion_data[:10])
 
@@ -97,7 +97,7 @@ def main(args):
         generated_motion_list = os.listdir(motion_feature_save_dir)
         generated_motion_list = [f for f in generated_motion_list if motion_id in f]
         if len(generated_motion_list) > 0:
-            print(f'{data_idx + 1}/{len(motion_data)} already exists!')
+            print(f'{data_idx + 1}/{len(motion_data)} already exists!', file=sys.stderr)
             continue
         print(f'{data_idx + 1}/{len(motion_data)}', end=' ')
 
@@ -112,7 +112,7 @@ def main(args):
         while True:
             attempt_count += 1
             if attempt_count >= 10:
-                print(f'Attempt count: {attempt_count}, give up pairing!')
+                print(f'Attempt count: {attempt_count}, give up pairing!', file=sys.stderr)
                 break
 
             music_id = random.choice(music_data)
