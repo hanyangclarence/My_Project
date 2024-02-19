@@ -115,7 +115,7 @@ class MusicMotionTransformer(pl.LightningModule):
         return lm
 
     def init_music_motion_lm_with_pretrained(self, ckpt: str):
-        if not os.path.exists(ckpt):
+        if ckpt is None or not os.path.exists(ckpt):
             print(f'Warning in instantiating music motion lm! [{ckpt}] does not exist!')
         assert os.path.exists(ckpt), f'The provided path {ckpt} does not exist!'
         # load the music motion lm part of the ckpt
