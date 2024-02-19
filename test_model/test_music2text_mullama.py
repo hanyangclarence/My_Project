@@ -79,6 +79,24 @@ if __name__ == "__main__":
         help="Whether to visualize music and motion",
     )
 
+    parser.add_argument(
+        '-s',
+        "--start",
+        type=float,
+        required=False,
+        default=0.0,
+        help='the start ratio for this preprocessing'
+    )
+
+    parser.add_argument(
+        '-e',
+        "--end",
+        type=float,
+        required=False,
+        default=1.0,
+        help='the end ratio of this preprocessing'
+    )
+
     args = parser.parse_args()
 
     seed_everything(args.seed)
