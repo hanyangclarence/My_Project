@@ -80,7 +80,6 @@ if __name__ == "__main__":
     )
 
     parser.add_argument(
-        '-s',
         "--start",
         type=float,
         required=False,
@@ -89,7 +88,6 @@ if __name__ == "__main__":
     )
 
     parser.add_argument(
-        '-e',
         "--end",
         type=float,
         required=False,
