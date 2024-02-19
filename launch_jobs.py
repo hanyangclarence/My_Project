@@ -66,8 +66,10 @@ if __name__ == "__main__":
 
         os.system('cat run_test_jobs.sh')
         os.system('sbatch run_test_jobs.sh')
-        time.sleep(10)
         start_ratio += increment
         job_count += 1
+
+        if start_ratio < 1.0 - 1e-4:
+            time.sleep(10)
 
     os.system('rm run_test_jobs.sh')
