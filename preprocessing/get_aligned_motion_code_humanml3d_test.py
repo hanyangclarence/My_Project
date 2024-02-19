@@ -118,6 +118,9 @@ def main(args):
                 break
 
             music_id = random.choice(music_data)
+            if not os.path.exists(pjoin(feature_dir, music_id + '.pth')):
+                continue
+
             # load music beat
             feature_dict = torch.load(pjoin(feature_dir, f'{music_id}.pth'))
             mbeat = feature_dict['beat']
@@ -203,7 +206,7 @@ def main(args):
         print(f'motion shape {motion.shape}, feature shape {motion_token.shape}', file=sys.stderr)
         motion_token = motion_token.cpu()
 
-        motion_token_save_path = pjoin(motion_feature_save_dir, music_id + f'_!motion_code!_{motion_id}.pth')
+        motion_token_save_path = pjoin(motion_feature_save_dir, music_id + f'_!humanml3d_test!_{motion_id}.pth')
         torch.save(motion_token, motion_token_save_path)  # 4, 1500
 
 
