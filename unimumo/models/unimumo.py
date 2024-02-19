@@ -231,6 +231,7 @@ class UniMuMo(nn.Module):
             music_code = torch.zeros_like(motion_code)
             mode = 'motion_caption'
 
+        print(f'in generate_text, music code: {music_code.shape}, motion code: {motion_code.shape}')
         batch = {
             'text': ['<separation>'] * music_code.shape[0],
             'music_code': music_code,
