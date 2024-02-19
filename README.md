@@ -2,6 +2,11 @@
 # Attempt 17: Use trainable self-attn
 
     e30
+    BLEU Score: 0.27536695397255606
+    BLEU-4 Score: 0.14732411657907374
+    METEOR Score: 0.27439814742868346
+    ROUGE Score: 0.37227896243683634
+    BERT Score: 0.8901135921478271
 
     On original data
     {'Matching_score': tensor(5.9848), 'gt_Matching_score': tensor(3.6037), 
@@ -16,7 +21,11 @@
 
     e42
 
-
+    BLEU Score: 0.28399657736931067
+    BLEU-4 Score: 0.1649144429266015
+    METEOR Score: 0.2973607269166294
+    ROUGE Score: 0.38103665177478113
+    BERT Score: 0.8927560448646545
     
     On original data
     {'Matching_score': tensor(6.1102), 'gt_Matching_score': tensor(3.6037), 
@@ -30,6 +39,11 @@
 
     e54
 
+    BLEU Score: 0.27602032536093757
+    BLEU-4 Score: 0.15324382588439978
+    METEOR Score: 0.279770358244704
+    ROUGE Score: 0.3763577191381629
+    BERT Score: 0.8909918665885925
 
     On original data
     {'Matching_score': tensor(6.1558), 'gt_Matching_score': tensor(3.6037), 
