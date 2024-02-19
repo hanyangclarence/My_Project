@@ -8,6 +8,7 @@ import torch
 from omegaconf import OmegaConf
 import numpy as np
 import subprocess
+import sys
 
 from pytorch_lightning.utilities.types import STEP_OUTPUT
 from pytorch_lightning.callbacks import Callback
@@ -255,6 +256,10 @@ class MusicMotionLogger(Callback):
                 for num in idx:
                     tempt_ls.append(text_prompt[num])
                 text_prompt = tempt_ls
+
+                print(f'Generated Text in Loggers: ', file=sys.stderr)
+                for text in text_prompt:
+                    print(text, file=sys.stderr)
 
                 # load VQVAE model
                 pkg = torch.load(self.music_vqvae_path, map_location='cpu')
