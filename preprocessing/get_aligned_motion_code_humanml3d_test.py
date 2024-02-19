@@ -34,6 +34,7 @@ def main(args):
     music_metadata_dir = 'data/music'
     motion_dir = 'data/motion'
     feature_dir = 'data/music/music4all_beat'
+    music_code_dir = 'data/music/music4all_codes'
     motion_feature_save_dir = 'data/motion/aligned_humanml3d_test_motion_code'
     dataset_name = 'music4all'
     # model paths
@@ -118,7 +119,7 @@ def main(args):
                 break
 
             music_id = random.choice(music_data)
-            if not os.path.exists(pjoin(feature_dir, music_id + '.pth')):
+            if not os.path.exists(pjoin(music_code_dir, music_id + '.pth')):
                 continue
 
             # load music beat
