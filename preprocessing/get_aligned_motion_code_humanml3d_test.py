@@ -99,7 +99,7 @@ def main(args):
         if len(generated_motion_list) > 0:
             print(f'{data_idx + 1}/{len(motion_data)} already exists!', file=sys.stderr)
             continue
-        print(f'{data_idx + 1}/{len(motion_data)}', end=' ')
+        print(f'{data_idx + 1}/{len(motion_data)}', end=' ', file=sys.stderr)
 
         base_motion = np.load(pjoin(motion_dir, 'test', 'joint_vecs', motion_id + '.npy'))
         base_motion = interpolate_to_60fps(base_motion)
