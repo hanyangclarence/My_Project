@@ -2,7 +2,7 @@ model:
   base_learning_rate: 5e-5
   target: unimumo.models.transformer_model.MusicMotionTransformer
   params:
-    name: 'pretrained/musicgen_small.bin'
+    name: 'facebook/musicgen-small'
     music_key: 'music_code'
     motion_key: 'motion_code'
     text_cond_key: 'text'
