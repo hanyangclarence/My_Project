@@ -154,10 +154,10 @@ if __name__ == "__main__":
 
             for motion_id in motion_id_batch:
                 # find a paired music code
-                selection = [s.split('_!motion_code!_')[0] for s in paired_music_motion if s.split('_!motion_code!_')[1][:-4] == motion_id]
+                selection = [s.split('_!humanml3d_test!_')[0] for s in paired_music_motion if s.split('_!humanml3d_test!_')[1][:-4] == motion_id]
                 music_code_id = selection[0]  # just choose the first one
                 music_code = torch.load(pjoin(music_code_dir, music_code_id + '.pth'))['codes']  # (1, 4, T)
-                motion_code = torch.load(pjoin(motion_code_dir, f'{music_code_id}_!motion_code!_{motion_id}.pth'))  # (4, T)
+                motion_code = torch.load(pjoin(motion_code_dir, f'{music_code_id}_!humanml3d_test!_{motion_id}.pth'))  # (4, T)
                 motion_code = motion_code[None, ...]  # (1, 4, T)
 
                 # cut first 10 s
