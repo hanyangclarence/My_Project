@@ -62,7 +62,6 @@ data:
         duration: 10
         vqvae_sr: 32000
         natural_language_caption_ratio: 1.0
-        humanml3d_only: True
 
     validation:
       target: unimumo.data.music_motion_text_dataset.MusicMotionTextDataset
@@ -75,7 +74,6 @@ data:
         duration: 10
         vqvae_sr: 32000
         natural_language_caption_ratio: 1.0
-        humanml3d_only: True
 
 lightning:
   callbacks:
