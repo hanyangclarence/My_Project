@@ -45,3 +45,13 @@ Branch from 15, and use causal attention mask, but still no cross attention
     'ROUGE_L': tensor(0.3482), 'CIDEr': tensor(0.0430), 
     'Bleu_4': {'score': 0.059289814780356165, 'precisions': [0.45194327205808815, 0.15352534008777868, 0.02697050551669431, 0.006603395268012298], 'brevity_penalty': 1.0, 'length_ratio': 1.4582871477743422, 'translation_length': 49993, 'reference_length': 34282, 'time_elapsed': 0.8883171081542969}, 
     'Bert_F1': tensor(0.3144)}
+
+    On original data
+    {'Matching_score': tensor(4.9724), 'gt_Matching_score': tensor(3.6037), 
+    'R_precision_top_1': tensor(0.2965), 'R_precision_top_2': tensor(0.4668), 'R_precision_top_3': tensor(0.5768), 
+    'gt_R_precision_top_1': tensor(0.4079), 'gt_R_precision_top_2': tensor(0.6078), 'gt_R_precision_top_3': tensor(0.7195), 
+    'Bleu_1': {'score': 0.4737415407434875, 'precisions': [0.4737415407434875], 'brevity_penalty': 1.0, 'length_ratio': 1.2586196837990782, 'translation_length': 43148, 'reference_length': 34282, 'time_elapsed': 0.3152604103088379}, 
+    'Bleu_2': tensor(0.), 'Bleu_3': tensor(0.), 
+    'ROUGE_L': tensor(0.3705), 'CIDEr': tensor(0.0444), 
+    'Bleu_4': {'score': 0.06801021151761959, 'precisions': [0.4737415407434875, 0.18140275210515505, 0.03251237196455288, 0.007657068062827225], 'brevity_penalty': 1.0, 'length_ratio': 1.2586196837990782, 'translation_length': 43148, 'reference_length': 34282, 'time_elapsed': 0.8733551502227783}, 
+    'Bert_F1': tensor(0.3718)}
