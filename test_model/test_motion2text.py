@@ -218,13 +218,16 @@ if __name__ == "__main__":
             except Exception as e:
                 print(e)
 
-            feature_263_filename = "%s.npy" % motion_id_batch[0]
-            feature_263_path = pjoin(feature_263_save_path, feature_263_filename)
-            np.save(feature_263_path, feature_263)
+            try:
+                feature_263_filename = "%s.npy" % motion_id_batch[0]
+                feature_263_path = pjoin(feature_263_save_path, feature_263_filename)
+                np.save(feature_263_path, feature_263)
 
-            feature_22_3_filename = "%s.npy" % motion_id_batch[0]
-            feature_22_3_path = pjoin(feature_22_3_save_path, feature_22_3_filename)
-            np.save(feature_22_3_path, joint)
+                feature_22_3_filename = "%s.npy" % motion_id_batch[0]
+                feature_22_3_path = pjoin(feature_22_3_save_path, feature_22_3_filename)
+                np.save(feature_22_3_path, joint)
+            except Exception as e:
+                print(e)
 
             # write generated descriptions
             for i in range(len(captions)):
