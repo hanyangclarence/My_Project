@@ -23,6 +23,7 @@ sys.path.append(str(parent_dir))
 from unimumo.motion import skel_animation
 from unimumo.motion.utils import kinematic_chain
 from unimumo.models import UniMuMo
+from unimumo.util import interpolate_to_60fps
 
 '''
 Load paired music and motion, all made to 10 seconds
@@ -83,10 +84,18 @@ if __name__ == "__main__":
     )
 
     parser.add_argument(
-        "--batch_size",
-        type=int,
+        "--start",
+        type=float,
         required=False,
-        default=10,
+        default=0.,
+        help="start ratio",
+    )
+
+    parser.add_argument(
+        "--end",
+        type=float,
+        required=False,
+        default=1.,
         help="end ratio",
     )
 
@@ -101,7 +110,7 @@ if __name__ == "__main__":
     os.makedirs(motion_save_path, exist_ok=True)
     os.makedirs(feature_263_save_path, exist_ok=True)
     os.makedirs(feature_22_3_save_path, exist_ok=True)
-    batch_size = args.batch_size
+    batch_size = 1
     motion_dir = args.motion_dir
     motion_code_dir = args.motion_code_dir
     duration = args.duration
@@ -127,67 +136,45 @@ if __name__ == "__main__":
         while count < len(motion_id_list):
             print(f'{count}/{len(motion_id_list)}')
             motion_code_list = []
-            motion_id_batch = motion_id_list[count: count + batch_size]
+            motion_id = motion_id_list[count]
 
-            for motion_id in motion_id_batch:
-                # find a paired music code
-                selection = [s.split('_!humanml3d_test!_')[0] for s in paired_music_motion if s.split('_!humanml3d_test!_')[1][:-4] == motion_id]
-                music_code_id = selection[0]  # just choose the first one
-                motion_code = torch.load(pjoin(motion_code_dir, f'{music_code_id}_!humanml3d_test!_{motion_id}.pth'))  # (4, T)
-                motion_code = motion_code[None, ...]  # (1, 4, T)
-                # cut first 10 s
-                motion_code = motion_code[:, :, :duration * 50]
+            motion_feature = np.load(pjoin(motion_dir, 'test', 'joint_vecs', motion_id + '.npy'))
+            motion_feature = interpolate_to_60fps(motion_feature)[None, ...]
+            print(f'motion feature: {motion_feature.shape}')
 
-                motion_code_list.append(motion_code)
+            captions = model.generate_text(motion_feature=motion_feature)
 
-            motion_codes = torch.cat(motion_code_list, dim=0).to(device)
+            # save some batch
+            if count % 10 == 0:
+                motion_id_to_save = motion_id
+                motion_feature_to_save = np.load(pjoin(motion_dir, 'test', 'joint_vecs', motion_id_to_save + '.npy'))[None, ...]
+                joint_to_save = model.motion_feature_to_joint(motion_feature_to_save)[0]
 
-            with torch.no_grad():
-                print(f'motion codes: {motion_codes.shape}')
+                motion_filename = "%s.mp4" % motion_id
+                motion_path = pjoin(motion_save_path, motion_filename)
+                try:
+                    skel_animation.plot_3d_motion(
+                        motion_path, kinematic_chain, joint_to_save, title='None', vbeat=None,
+                        fps=model.motion_fps, radius=4
+                    )
+                    feature_263_filename = "%s.npy" % motion_id
+                    feature_263_path = pjoin(feature_263_save_path, feature_263_filename)
+                    np.save(feature_263_path, motion_feature_to_save[0])
 
-                batch = {
-                    'text': ['<separation>'] * motion_codes.shape[0],
-                    'music_code': torch.zeros_like(motion_codes, device=device),
-                    'motion_code': motion_codes
-                }
-
-                captions = model.music_motion_lm.generate_captions(batch, return_caption_only=True, mode='motion_caption')
-
-            # save the first in a batch
-            motion_id_to_save = motion_id_batch[0]
-            motion_feature_to_save = np.load(pjoin(motion_dir, 'test', 'joint_vecs', motion_id_to_save + '.npy'))[None, ...]
-            joint_to_save = model.motion_feature_to_joint(motion_feature_to_save)[0]
-
-            motion_filename = "%s.mp4" % motion_id_batch[0]
-            motion_path = pjoin(motion_save_path, motion_filename)
-            try:
-                skel_animation.plot_3d_motion(
-                    motion_path, kinematic_chain, joint_to_save, title='None', vbeat=None,
-                    fps=model.motion_fps, radius=4
-                )
-            except Exception as e:
-                print(e)
-
-            try:
-                feature_263_filename = "%s.npy" % motion_id_batch[0]
-                feature_263_path = pjoin(feature_263_save_path, feature_263_filename)
-                np.save(feature_263_path, motion_feature_to_save[0])
-
-                feature_22_3_filename = "%s.npy" % motion_id_batch[0]
-                feature_22_3_path = pjoin(feature_22_3_save_path, feature_22_3_filename)
-                np.save(feature_22_3_path, joint_to_save)
-            except Exception as e:
-                print(e)
+                    feature_22_3_filename = "%s.npy" % motion_id
+                    feature_22_3_path = pjoin(feature_22_3_save_path, feature_22_3_filename)
+                    np.save(feature_22_3_path, joint_to_save)
+                except Exception as e:
+                    print(e)
 
             # write generated descriptions
-            for i in range(len(captions)):
-                description = captions[i]
-                description = description.replace('The motion is that', '')
-                description = description.replace('The dance is that', '')
-                description = description.strip().capitalize()
+            description = captions[0]
+            description = description.replace('The motion is that', '')
+            description = description.replace('The dance is that', '')
+            description = description.strip().capitalize()
 
-                result_dict[motion_id_batch[i]] = description
-                print(f'{motion_id_batch[i]}\t{description}', file=sys.stderr)
+            result_dict[motion_id] = description
+            print(f'\t\t\t\t{motion_id}\t{description}', file=sys.stderr)
 
             count += batch_size
 
