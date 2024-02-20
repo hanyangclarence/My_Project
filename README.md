@@ -9,14 +9,14 @@ Branch from 15, and use causal attention mask, but still no cross attention
     ROUGE Score: 0.3742569373771276
     BERT Score: 0.8920141458511353
 
-    'Matching_score': tensor(8.1166), 'gt_Matching_score': tensor(3.6037), 
-    'R_precision_top_1': tensor(0.0658), 'R_precision_top_2': tensor(0.1188), 'R_precision_top_3': tensor(0.1615), 
+    {'Matching_score': tensor(4.9418), 'gt_Matching_score': tensor(3.6037), 
+    'R_precision_top_1': tensor(0.2686), 'R_precision_top_2': tensor(0.4361), 'R_precision_top_3': tensor(0.5491), 
     'gt_R_precision_top_1': tensor(0.4079), 'gt_R_precision_top_2': tensor(0.6078), 'gt_R_precision_top_3': tensor(0.7195), 
-    'Bleu_1': {'score': 0.2583867258091014, 'precisions': [0.2583867258091014], 'brevity_penalty': 1.0, 'length_ratio': 1.7755673531299223, 'translation_length': 60870, 'reference_length': 34282, 'time_elapsed': 0.339292049407959}, 
+    'Bleu_1': {'score': 0.35328608344793194, 'precisions': [0.35328608344793194], 'brevity_penalty': 1.0, 'length_ratio': 1.930254944285631, 'translation_length': 66173, 'reference_length': 34282, 'time_elapsed': 0.3316459655761719}, 
     'Bleu_2': tensor(0.), 'Bleu_3': tensor(0.), 
-    'ROUGE_L': tensor(0.2140), 'CIDEr': tensor(0.0100), 
-    'Bleu_4': {'score': 0.015827601571305756, 'precisions': [0.2583867258091014, 0.06105092282175248, 0.004573345020770609, 0.0008698893997763141], 'brevity_penalty': 1.0, 'length_ratio': 1.7755673531299223, 'translation_length': 60870, 'reference_length': 34282, 'time_elapsed': 0.6483256816864014}, 
-    'Bert_F1': tensor(0.1438)}
+    'ROUGE_L': tensor(0.3018), 'CIDEr': tensor(0.0328), 
+    'Bleu_4': {'score': 0.03622897474357229, 'precisions': [0.35328608344793194, 0.10266711844716589, 0.013395406794621069, 0.0035457684053373144], 'brevity_penalty': 1.0, 'length_ratio': 1.930254944285631, 'translation_length': 66173, 'reference_length': 34282, 'time_elapsed': 0.665956974029541}, 
+    'Bert_F1': tensor(0.2327)}
 
     e42:
     BLEU Score: 0.2803995969650303
