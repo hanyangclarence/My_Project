@@ -8,7 +8,8 @@ Branch from 15, and use causal attention mask, but still no cross attention
     METEOR Score: 0.33086423707545537
     ROUGE Score: 0.3742569373771276
     BERT Score: 0.8920141458511353
-
+    
+    On aligned data
     {'Matching_score': tensor(4.9418), 'gt_Matching_score': tensor(3.6037), 
     'R_precision_top_1': tensor(0.2686), 'R_precision_top_2': tensor(0.4361), 'R_precision_top_3': tensor(0.5491), 
     'gt_R_precision_top_1': tensor(0.4079), 'gt_R_precision_top_2': tensor(0.6078), 'gt_R_precision_top_3': tensor(0.7195), 
@@ -18,6 +19,16 @@ Branch from 15, and use causal attention mask, but still no cross attention
     'Bleu_4': {'score': 0.03622897474357229, 'precisions': [0.35328608344793194, 0.10266711844716589, 0.013395406794621069, 0.0035457684053373144], 'brevity_penalty': 1.0, 'length_ratio': 1.930254944285631, 'translation_length': 66173, 'reference_length': 34282, 'time_elapsed': 0.665956974029541}, 
     'Bert_F1': tensor(0.2327)}
 
+    On original data
+    {'Matching_score': tensor(5.2472), 'gt_Matching_score': tensor(3.6037), 
+    'R_precision_top_1': tensor(0.2605), 'R_precision_top_2': tensor(0.4189), 'R_precision_top_3': tensor(0.5367), 
+    'gt_R_precision_top_1': tensor(0.4079), 'gt_R_precision_top_2': tensor(0.6078), 'gt_R_precision_top_3': tensor(0.7195), 
+    'Bleu_1': {'score': 0.36227082784324055, 'precisions': [0.3622708278432406], 'brevity_penalty': 1.0, 'length_ratio': 1.5496762149232834, 'translation_length': 53126, 'reference_length': 34282, 'time_elapsed': 0.31965041160583496}, 
+    'Bleu_2': tensor(0.), 'Bleu_3': tensor(0.), 
+    'ROUGE_L': tensor(0.3435), 'CIDEr': tensor(0.0332), 
+    'Bleu_4': {'score': 0.042133157750409385, 'precisions': [0.3622708278432406, 0.12902105048027795, 0.016564581749899405, 0.0040702550693176775], 'brevity_penalty': 1.0, 'length_ratio': 1.5496762149232834, 'translation_length': 53126, 'reference_length': 34282, 'time_elapsed': 0.6278567314147949},    
+    'Bert_F1': tensor(0.3459)}
+
     e42:
     BLEU Score: 0.2803995969650303
     BLEU-4 Score: 0.16405368494122585
@@ -25,6 +36,7 @@ Branch from 15, and use causal attention mask, but still no cross attention
     ROUGE Score: 0.38452373643693466
     BERT Score: 0.8948946595191956
 
+    On aligned data
     {'Matching_score': tensor(4.7133), 'gt_Matching_score': tensor(3.6037), 
     'R_precision_top_1': tensor(0.3073), 'R_precision_top_2': tensor(0.4735), 'R_precision_top_3': tensor(0.5885), 
     'gt_R_precision_top_1': tensor(0.4079), 'gt_R_precision_top_2': tensor(0.6078), 'gt_R_precision_top_3': tensor(0.7195), 
