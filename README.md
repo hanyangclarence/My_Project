@@ -35,14 +35,14 @@ We start from only changing to fully attention mask in encoder!
     ROUGE Score: 0.3812189555871715
     BERT Score: 0.8964552879333496
 
-    {'Matching_score': tensor(8.0127), 'gt_Matching_score': tensor(3.6037), 
-    'R_precision_top_1': tensor(0.0451), 'R_precision_top_2': tensor(0.0859), 'R_precision_top_3': tensor(0.1279), 
+    'Matching_score': tensor(5.8950), 'gt_Matching_score': tensor(3.6037), 
+    'R_precision_top_1': tensor(0.2087), 'R_precision_top_2': tensor(0.3480), 'R_precision_top_3': tensor(0.4590), 
     'gt_R_precision_top_1': tensor(0.4079), 'gt_R_precision_top_2': tensor(0.6078), 'gt_R_precision_top_3': tensor(0.7195), 
-    'Bleu_1': {'score': 0.29169950425829416, 'precisions': [0.29169950425829416], 'brevity_penalty': 1.0, 'length_ratio': 1.1473951344729012, 'translation_length': 39335, 'reference_length': 34282, 'time_elapsed': 0.33183884620666504}, 
-    'Bleu_2': tensor(0.), 'Bleu_3': tensor(0.), 
-    'ROUGE_L': tensor(0.1888), 'CIDEr': tensor(0.0096), 
-    'Bleu_4': {'score': 0.015935150347416573, 'precisions': [0.29169950425829416, 0.05523776999914625, 0.004653718126878454, 0.0008599095225632781], 'brevity_penalty': 1.0, 'length_ratio': 1.1473951344729012, 'translation_length': 39335, 'reference_length': 34282, 'time_elapsed': 0.6454355716705322}, 
-    'Bert_F1': tensor(0.1149)}
+    'Bleu_1': {'score': 0.44234812437755894, 'precisions': [0.44234812437755894], 'brevity_penalty': 1.0, 'length_ratio': 1.0544308966804736, 'translation_length': 36148, 'reference_length': 34282, 'time_elapsed': 14.397326946258545}, 
+    'Bleu_2': tensor(0.), 'Bleu_3': tensor(0.),     
+    'ROUGE_L': tensor(0.3203), 'CIDEr': tensor(0.0301),     
+    'Bleu_4': {'score': 0.0576742044901045, 'precisions': [0.44234812437755894, 0.15892588883324987, 0.02392275544026517, 0.006578947368421052], 'brevity_penalty': 1.0, 'length_ratio': 1.0544308966804736, 'translation_length': 36148, 'reference_length': 34282, 'time_elapsed': 0.6211049556732178}, 
+    'Bert_F1': tensor(0.3087)}
 
     e54:
     BLEU Score: 0.2665478783590597
