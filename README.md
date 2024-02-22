@@ -9,14 +9,14 @@ We start from only changing to fully attention mask in encoder!
     ROUGE Score: 0.3622084466255796
     BERT Score: 0.8938219547271729
 
-    {'Matching_score': tensor(7.9227), 'gt_Matching_score': tensor(3.6037), 
-    'R_precision_top_1': tensor(0.0415), 'R_precision_top_2': tensor(0.0747), 'R_precision_top_3': tensor(0.1095), 
+    {'Matching_score': tensor(6.3040), 'gt_Matching_score': tensor(3.6037), 
+    'R_precision_top_1': tensor(0.1672), 'R_precision_top_2': tensor(0.2829), 'R_precision_top_3': tensor(0.3760), 
     'gt_R_precision_top_1': tensor(0.4079), 'gt_R_precision_top_2': tensor(0.6078), 'gt_R_precision_top_3': tensor(0.7195), 
-    'Bleu_1': {'score': 0.2559642022172503, 'precisions': [0.2559642022172503], 'brevity_penalty': 1.0, 'length_ratio': 1.160346537541567, 'translation_length': 39779, 'reference_length': 34282, 'time_elapsed': 0.3639943599700928}, 
+    'Bleu_1': {'score': 0.3854676561924312, 'precisions': [0.3854676561924312], 'brevity_penalty': 1.0, 'length_ratio': 1.1083950761332477, 'translation_length': 37998, 'reference_length': 34282, 'time_elapsed': 0.3515961170196533}, 
     'Bleu_2': tensor(0.), 'Bleu_3': tensor(0.), 
-    'ROUGE_L': tensor(0.1664), 'CIDEr': tensor(0.0095), 
-    'Bleu_4': {'score': 0.010655971547370484, 'precisions': [0.2559642022172503, 0.039260320939774614, 0.0023258036766814288, 0.0005516531205178184], 'brevity_penalty': 1.0, 'length_ratio': 1.160346537541567, 'translation_length': 39779, 'reference_length': 34282, 'time_elapsed': 0.6393814086914062}, 
-    'Bert_F1': tensor(0.0921)}
+    'ROUGE_L': tensor(0.2846), 'CIDEr': tensor(0.0227), 
+    'Bleu_4': {'score': 0.03924585067270877, 'precisions': [0.3854676561924312, 0.12126501390450269, 0.01401742889954739, 0.0036206218024399843], 'brevity_penalty': 1.0, 'length_ratio': 1.1083950761332477, 'translation_length': 37998, 'reference_length': 34282, 'time_elapsed': 0.8554337024688721}, 
+    'Bert_F1': tensor(0.2658)}
 
     (My previous sota)
     {'Matching_score': tensor(3.8882), 'gt_Matching_score': tensor(3.6037), 
