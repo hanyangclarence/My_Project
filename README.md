@@ -28,6 +28,16 @@
     'Bleu_4': {'score': 0.07557576032166154, 'precisions': [0.4765049307939562, 0.1733635072345138, 0.038161806057684586, 0.010348468848996832], 'brevity_penalty': 1.0, 'length_ratio': 1.3340236858993058, 'translation_length': 45733, 'reference_length': 34282, 'time_elapsed': 0.9013702869415283}, 
     'Bert_F1': tensor(0.3773)}
 
+    On repeat data
+    {'Matching_score': tensor(4.4691), 'gt_Matching_score': tensor(3.6037), 
+    'R_precision_top_1': tensor(0.3342), 'R_precision_top_2': tensor(0.5050), 'R_precision_top_3': tensor(0.6157), 
+    'gt_R_precision_top_1': tensor(0.4079), 'gt_R_precision_top_2': tensor(0.6078), 'gt_R_precision_top_3': tensor(0.7195), 
+    'Bleu_1': {'score': 0.4668114211269135, 'precisions': [0.4668114211269135], 'brevity_penalty': 1.0, 'length_ratio': 1.3434163701067616, 'translation_length': 46055, 'reference_length': 34282, 'time_elapsed': 0.34845709800720215}, 
+    'Bleu_2': tensor(0.), 'Bleu_3': tensor(0.), 
+    'ROUGE_L': tensor(0.3536), 'CIDEr': tensor(0.0499), 
+    'Bleu_4': {'score': 0.07094531514104953, 'precisions': [0.4668114211269135, 0.1666786115291813, 0.03470249316305127, 0.009382376669555085], 'brevity_penalty': 1.0, 'length_ratio': 1.3434163701067616, 'translation_length': 46055, 'reference_length': 34282, 'time_elapsed': 0.8835737705230713}, 
+    'Bert_F1': tensor(0.3664)}
+
 
     e42
 
@@ -56,6 +66,16 @@
     'ROUGE_L': tensor(0.3616), 'CIDEr': tensor(0.0535), 
     'Bleu_4': {'score': 0.06911904642020918, 'precisions': [0.46468042190192044, 0.1639706898935435, 0.03328911790214785, 0.008998457407301605], 'brevity_penalty': 1.0, 'length_ratio': 1.3883087334461233, 'translation_length': 47594, 'reference_length': 34282, 'time_elapsed': 0.8871791362762451}, 
     'Bert_F1': tensor(0.3717)}
+
+    On repeat data
+    {'Matching_score': tensor(4.4688), 'gt_Matching_score': tensor(3.6037), 
+    'R_precision_top_1': tensor(0.3368), 'R_precision_top_2': tensor(0.5076), 'R_precision_top_3': tensor(0.6267), 
+    'gt_R_precision_top_1': tensor(0.4079), 'gt_R_precision_top_2': tensor(0.6078), 'gt_R_precision_top_3': tensor(0.7195), 
+    'Bleu_1': {'score': 0.4609607392249109, 'precisions': [0.4609607392249109], 'brevity_penalty': 1.0, 'length_ratio': 1.3826789568869962, 'translation_length': 47401, 'reference_length': 34282, 'time_elapsed': 0.31923651695251465}, 
+    'Bleu_2': tensor(0.), 'Bleu_3': tensor(0.), 
+    'ROUGE_L': tensor(0.3563), 'CIDEr': tensor(0.0505), 
+    'Bleu_4': {'score': 0.06709736923446732, 'precisions': [0.4609607392249109, 0.16206457585927556, 0.03117229357327796, 0.008703645190015223], 'brevity_penalty': 1.0, 'length_ratio': 1.3826789568869962, 'translation_length': 47401, 'reference_length': 34282, 'time_elapsed': 0.8823819160461426}, 
+    'Bert_F1': tensor(0.3631)}
 
     e54
 
