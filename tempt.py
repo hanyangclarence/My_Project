@@ -1,182 +1,23 @@
-import argparse
-import json
-import os
-import sys
-
-import numpy as np
-import torch
-from os.path import join as pjoin
-import soundfile as sf
-import pandas as pd
-import subprocess
-import random
-from pytorch_lightning import seed_everything
-
-from unimumo.motion import skel_animation
-from unimumo.motion.utils import kinematic_chain
-from unimumo.models import UniMuMo
-
-'''
-Load paired music and motion, all made to 10 seconds
-'''
+bleu_1_scores = []
+bleu_4_scores = []
+weights_for_bleu1 = (1, 0, 0, 0)
+weights_for_bleu4 = (0.25, 0.25, 0.25, 0.25)
+for pred, refs in zip(prediction, reference):
+    # Tokenize the prediction and references
+    tokenized_pred = pred.split()
+    tokenized_refs = [ref.split() for ref in refs]  # Assuming each reference is a list of sentences
+    # Calculate BLEU score
+    score = sentence_bleu(tokenized_refs, tokenized_pred, weights=weights_for_bleu1)
+    bleu_1_scores.append(score)
+    score = sentence_bleu(tokenized_refs, tokenized_pred, weights=weights_for_bleu4)
+    bleu_4_scores.append(score)
 
 
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-
-    parser.add_argument(
-        "-s",
-        "--save_path",
-        type=str,
-        required=False,
-        help="The path to save model output",
-        default="./test_motion2text_humanml3d",
-    )
-
-    parser.add_argument(
-        "--motion_dir",
-        type=str,
-        required=False,
-        help="The path to motion data dir",
-        default='data/motion',
-    )
-
-    parser.add_argument(
-        "--motion_code_dir",
-        type=str,
-        required=False,
-        help="The path to motion data dir",
-        default='data/motion/aligned_motion_code_music4all_60hz',
-    )
-
-    parser.add_argument(
-        "-d",
-        "--duration",
-        type=float,
-        required=False,
-        default=5,
-        help="Generated audio time",
-    )
-
-    parser.add_argument(
-        "--seed",
-        type=int,
-        required=False,
-        default=42,
-        help="Change this value (any integer number) will lead to a different generation result.",
-    )
-
-    parser.add_argument(
-        "--ckpt",
-        type=str,
-        required=False,
-        default='pretrained/exp_15_e42.ckpt',
-        help="load checkpoint",
-    )
-
-    parser.add_argument(
-        "--batch_size",
-        type=int,
-        required=False,
-        default=3,
-        help="end ratio",
-    )
-
-    args = parser.parse_args()
-
-    seed_everything(args.seed)
-    save_path = args.save_path
-    motion_save_path = pjoin(save_path, 'motion')
-    feature_263_save_path = pjoin(save_path, 'feature_263')
-    feature_22_3_save_path = pjoin(save_path, 'feature_22_3')
-    os.makedirs(save_path, exist_ok=True)
-    os.makedirs(motion_save_path, exist_ok=True)
-    os.makedirs(feature_263_save_path, exist_ok=True)
-    os.makedirs(feature_22_3_save_path, exist_ok=True)
-    batch_size = args.batch_size
-    motion_dir = args.motion_dir
-    motion_code_dir = args.motion_code_dir
-    duration = args.duration
-
-    motion_id_list = []
-    with open(pjoin(motion_dir, 'humanml3d_train.txt'), 'r') as f:
-        for line in f.readlines():
-            motion_id_list.append(line.strip())
-
-    paired_music_motion = os.listdir(motion_code_dir)
-    motion_id_list = [s for s in motion_id_list if any([s in paired_name for paired_name in paired_music_motion])]
-
-    print('number of motion data:', len(motion_id_list), file=sys.stderr)
-    print('number of paired motion: ', len(paired_music_motion), file=sys.stderr)
-
-    # load model
-    model = UniMuMo.from_checkpoint(args.ckpt, device='cpu', debug=True)
-    device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
-
-    result_dict = {}
-    count = 0
-    with open(pjoin(save_path, f'gen_captions.json'), 'w') as f:
-        while count < len(motion_id_list):
-            print(f'{count}/{len(motion_id_list)}')
-            motion_code_list = []
-            motion_id_batch = motion_id_list[count: count + batch_size]
-
-            for motion_id in motion_id_batch:
-                # find a paired music code
-                selection = [s.split('_!humanml3d_test!_')[0] for s in paired_music_motion if s.split('_!humanml3d_test!_')[1][:-4] == motion_id]
-                music_code_id = selection[0]  # just choose the first one
-                motion_code = torch.load(pjoin(motion_code_dir, f'{music_code_id}_!humanml3d_test!_{motion_id}.pth'))  # (4, T)
-                motion_code = motion_code[None, ...]  # (1, 4, T)
-                # cut first 10 s
-                motion_code = motion_code[:, :, :duration * 50]
-
-                motion_code_list.append(motion_code)
-
-            motion_codes = torch.cat(motion_code_list, dim=0).to(device)
-
-            with torch.no_grad():
-                print(f'motion codes: {motion_codes.shape}')
-
-                batch = {
-                    'text': [''] * motion_codes.shape[0],
-                    'music_code': torch.zeros_like(motion_codes, device=device),
-                    'motion_code': motion_codes
-                }
-
-                captions = model.music_motion_lm.generate_captions(batch, return_caption_only=True)
-
-            # save the first in a batch
-            motion_id_to_save = motion_id_batch[0]
-            motion_feature_to_save = np.load(pjoin(motion_dir, 'test', 'joint_vecs', motion_id_to_save + '.npy'))[None, ...]
-            joint_to_save = model.motion_feature_to_joint(motion_feature_to_save)[0]
-
-            motion_filename = "%s.mp4" % motion_id_batch[0]
-            motion_path = pjoin(motion_save_path, motion_filename)
-            try:
-                skel_animation.plot_3d_motion(
-                    motion_path, kinematic_chain, joint_to_save, title='None', vbeat=None,
-                    fps=model.motion_fps, radius=4
-                )
-            except Exception as e:
-                print(e)
-
-
-            feature_263_filename = "%s.npy" % motion_id_batch[0]
-            feature_263_path = pjoin(feature_263_save_path, feature_263_filename)
-            np.save(feature_263_path, motion_feature_to_save[0])
-
-            feature_22_3_filename = "%s.npy" % motion_id_batch[0]
-            feature_22_3_path = pjoin(feature_22_3_save_path, feature_22_3_filename)
-            np.save(feature_22_3_path, joint_to_save)
-
-            # write generated descriptions
-            for i in range(len(captions)):
-                description = captions[i]
-                description = description.strip().capitalize()
-
-                result_dict[motion_id_batch[i]] = description
-                print(f'{motion_id_batch[i]}\t{description}', file=sys.stderr)
-
-            count += batch_size
-
-        json.dump(result_dict, f, indent=4)
+rouge = Rouge()
+rouge_scores = []
+for pred, refs in zip(prediction, reference):
+    # The `rouge` library expects a single reference, so you might need to choose how to handle multiple references
+    # Here, we concatenate them, but consider the best approach for your use case
+    concatenated_refs = ' '.join(refs)  # Assuming each reference is a list of sentences
+    score = rouge.get_scores(pred, concatenated_refs)[0]  # get_scores returns a list of scores
+    rouge_scores.append(score)
