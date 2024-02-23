@@ -97,3 +97,7 @@ The motion code is extracted by zero-padding the remaining parts
 
 
 # Attempt 22.2: Use repeated motion code
+
+
+# Attempt 22.3: Use humanml3d only
+Branch from attempt 22, and still uses padding
