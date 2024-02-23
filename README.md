@@ -98,6 +98,27 @@ The motion code is extracted by zero-padding the remaining parts
 
 # Attempt 22.2: Use repeated motion code
 
+    e30
+    BLEU Score: 0.26832775461563774
+    BLEU-4 Score: 0.17058964668601476
+    METEOR Score: 0.3425890352057782
+    ROUGE Score: 0.38217315156475296
+    BERT Score: 0.8962110877037048
+
+    e42
+    BLEU Score: 0.25895490860130504
+    BLEU-4 Score: 0.14910695957121758
+    METEOR Score: 0.3223428716903407
+    ROUGE Score: 0.37870007639811426
+    BERT Score: 0.8956394195556641
+
+    e54
+    BLEU Score: 0.27431765985324336
+    BLEU-4 Score: 0.1589862886299211
+    METEOR Score: 0.30420150506302013
+    ROUGE Score: 0.37324639453857406
+    BERT Score: 0.8926103115081787
+
 
 # Attempt 22.3: Use humanml3d only
 Branch from attempt 22, and still uses padding
