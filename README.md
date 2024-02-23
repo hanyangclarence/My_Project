@@ -8,6 +8,12 @@ The motion code is extracted by zero-padding the remaining parts
 
     e30
 
+    BLEU Score: 0.2502841084795902
+    BLEU-4 Score: 0.16351874827177476
+    METEOR Score: 0.34317886321420504
+    ROUGE Score: 0.37312134018578674
+    BERT Score: 0.8938829898834229
+
     {'Matching_score': tensor(4.7150), 'gt_Matching_score': tensor(3.6037), 
     'R_precision_top_1': tensor(0.3438), 'R_precision_top_2': tensor(0.5327), 'R_precision_top_3': tensor(0.6510), 
     'gt_R_precision_top_1': tensor(0.4079), 'gt_R_precision_top_2': tensor(0.6078), 'gt_R_precision_top_3': tensor(0.7195), 
@@ -19,6 +25,12 @@ The motion code is extracted by zero-padding the remaining parts
 
     e42
 
+    BLEU Score: 0.2728034459482026
+    BLEU-4 Score: 0.1610319296285683
+    METEOR Score: 0.3355172024000024
+    ROUGE Score: 0.3817655313749064
+    BERT Score: 0.8977652192115784
+
     {'Matching_score': tensor(4.3245), 'gt_Matching_score': tensor(3.6037), 
     'R_precision_top_1': tensor(0.3869), 'R_precision_top_2': tensor(0.5708), 'R_precision_top_3': tensor(0.6861), 
     'gt_R_precision_top_1': tensor(0.4079), 'gt_R_precision_top_2': tensor(0.6078), 'gt_R_precision_top_3': tensor(0.7195), 
@@ -28,6 +40,12 @@ The motion code is extracted by zero-padding the remaining parts
     'Bert_F1': tensor(0.4110)}
 
     e54
+
+    BLEU Score: 0.26398237249421697
+    BLEU-4 Score: 0.16055160540851926
+    METEOR Score: 0.31197643831627603
+    ROUGE Score: 0.3692726558458997
+    BERT Score: 0.8913907408714294
 
     (completed)
     {'Matching_score': tensor(4.0418), 'gt_Matching_score': tensor(3.6208), 
