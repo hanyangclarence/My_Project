@@ -149,7 +149,7 @@ if __name__ == "__main__":
                 motion_feature = motion_feature[:target_length]
             else:
                 padded_feature = np.zeros((target_length, motion_feature.shape[-1]))
-                padded_feature[:target_length] = motion_feature
+                padded_feature[:curr_lenth] = motion_feature
                 motion_feature = padded_feature
             print(motion_feature.shape)
 
