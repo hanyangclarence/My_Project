@@ -67,6 +67,32 @@ The motion code is extracted by zero-padding the remaining parts
     ---> [M2T_EL4_DL4_NH8_PS](top 1) Mean: 0.4851 CInt: 0.0000;(top 2) Mean: 0.6905 CInt: 0.0000;(top 3) Mean: 0.7933 CInt: 0.0000;
     ---> [ground truth](top 1) Mean: 0.5162 CInt: 0.0000;(top 2) Mean: 0.7056 CInt: 0.0000;(top 3) Mean: 0.8026 CInt: 0.0000;
 
+    e66
+    BLEU Score: 0.26096739866440294
+    BLEU-4 Score: 0.14625695605381528
+    METEOR Score: 0.29057097911264346
+    ROUGE Score: 0.36931510966571246
+    BERT Score: 0.8917101621627808
+
+    {'Matching_score': tensor(3.9815), 'gt_Matching_score': tensor(3.6208), 
+    'R_precision_top_1': tensor(0.4082), 'R_precision_top_2': tensor(0.6149), 'R_precision_top_3': tensor(0.7248), 
+    'gt_R_precision_top_1': tensor(0.4172), 'gt_R_precision_top_2': tensor(0.6037), 'gt_R_precision_top_3': tensor(0.7151), 
+    'Bleu_1': tensor(0.5288), 'Bleu_2': tensor(0.), 'Bleu_3': tensor(0.), 
+    'ROUGE_L': tensor(0.4014), 'CIDEr': tensor(0.0622), 
+    'Bleu_4': tensor(0.0928), 
+    'Bert_F1': tensor(0.4091)}
+
+    ---> [M2T_EL4_DL4_NH8_PS] BLEU: (1): 0.3536 (2): 0.1735 (3): 0.0889 (4): 0.0447
+    ---> [M2T_EL4_DL4_NH8_PS] ROUGE_L: 0.2834
+    ---> [M2T_EL4_DL4_NH8_PS] CIDER: 0.0622
+    ---> [M2T_EL4_DL4_NH8_PS] BERT SCORE: 0.4089
+    ========== Matching Score Summary ==========
+    ---> [M2T_EL4_DL4_NH8_PS] Mean: 3.0592 CInterval: 0.0000
+    ---> [ground truth] Mean: 2.9649 CInterval: 0.0000
+    ========== R_precision Summary ==========
+    ---> [M2T_EL4_DL4_NH8_PS](top 1) Mean: 0.5213 CInt: 0.0000;(top 2) Mean: 0.7091 CInt: 0.0000;(top 3) Mean: 0.8022 CInt: 0.0000;
+    ---> [ground truth](top 1) Mean: 0.5125 CInt: 0.0000;(top 2) Mean: 0.7026 CInt: 0.0000;(top 3) Mean: 0.7991 CInt: 0.0000;
+
 
 
 
@@ -105,12 +131,52 @@ The motion code is extracted by zero-padding the remaining parts
     ROUGE Score: 0.38217315156475296
     BERT Score: 0.8962110877037048
 
+    {'Matching_score': tensor(4.9403), 'gt_Matching_score': tensor(3.6208), 
+    'R_precision_top_1': tensor(0.3317), 'R_precision_top_2': tensor(0.5112), 'R_precision_top_3': tensor(0.6284), 
+    'gt_R_precision_top_1': tensor(0.4172), 'gt_R_precision_top_2': tensor(0.6037), 'gt_R_precision_top_3': tensor(0.7151), 
+    'Bleu_1': tensor(0.4926), 'Bleu_2': tensor(0.), 'Bleu_3': tensor(0.), 
+    'ROUGE_L': tensor(0.3733), 'CIDEr': tensor(0.0455), 
+    'Bleu_4': tensor(0.0797), 
+    'Bert_F1': tensor(0.3769)}
+
+    ---> [M2T_EL4_DL4_NH8_PS] BLEU: (1): 0.3216 (2): 0.1500 (3): 0.0738 (4): 0.0334
+    ---> [M2T_EL4_DL4_NH8_PS] ROUGE_L: 0.2579
+    ---> [M2T_EL4_DL4_NH8_PS] CIDER: 0.0454
+    ---> [M2T_EL4_DL4_NH8_PS] BERT SCORE: 0.3768
+    ========== Matching Score Summary ==========
+    ---> [M2T_EL4_DL4_NH8_PS] Mean: 4.1846 CInterval: 0.0000
+    ---> [ground truth] Mean: 2.9931 CInterval: 0.0000
+    ========== R_precision Summary ==========
+    ---> [M2T_EL4_DL4_NH8_PS](top 1) Mean: 0.3808 CInt: 0.0000;(top 2) Mean: 0.5582 CInt: 0.0000;(top 3) Mean: 0.6621 CInt: 0.0000;
+    ---> [ground truth](top 1) Mean: 0.5147 CInt: 0.0000;(top 2) Mean: 0.7011 CInt: 0.0000;(top 3) Mean: 0.7978 CInt: 0.0000;
+
     e42
     BLEU Score: 0.25895490860130504
     BLEU-4 Score: 0.14910695957121758
     METEOR Score: 0.3223428716903407
     ROUGE Score: 0.37870007639811426
     BERT Score: 0.8956394195556641
+
+    {'Matching_score': tensor(4.7218), 'gt_Matching_score': tensor(3.6208), 
+    'R_precision_top_1': tensor(0.3394), 'R_precision_top_2': tensor(0.5250), 'R_precision_top_3': tensor(0.6442), 
+    'gt_R_precision_top_1': tensor(0.4172), 'gt_R_precision_top_2': tensor(0.6037), 'gt_R_precision_top_3': tensor(0.7151), 
+    'Bleu_1': tensor(0.4710), 'Bleu_2': tensor(0.), 'Bleu_3': tensor(0.), 
+    'ROUGE_L': tensor(0.3698), 'CIDEr': tensor(0.0579), 
+    'Bleu_4': tensor(0.0797), 
+    'Bert_F1': tensor(0.3816)}
+
+
+    ---> [M2T_EL4_DL4_NH8_PS] BLEU: (1): 0.3354 (2): 0.1607 (3): 0.0822 (4): 0.0415
+    ---> [M2T_EL4_DL4_NH8_PS] ROUGE_L: 0.2627
+    ---> [M2T_EL4_DL4_NH8_PS] CIDER: 0.0579
+    ---> [M2T_EL4_DL4_NH8_PS] BERT SCORE: 0.3815
+    ========== Matching Score Summary ==========
+    ---> [M2T_EL4_DL4_NH8_PS] Mean: 3.8989 CInterval: 0.0000
+    ---> [ground truth] Mean: 2.9564 CInterval: 0.0000
+    ========== R_precision Summary ==========
+    ---> [M2T_EL4_DL4_NH8_PS](top 1) Mean: 0.4019 CInt: 0.0000;(top 2) Mean: 0.5800 CInt: 0.0000;(top 3) Mean: 0.6907 CInt: 0.0000;
+    ---> [ground truth](top 1) Mean: 0.5200 CInt: 0.0000;(top 2) Mean: 0.7095 CInt: 0.0000;(top 3) Mean: 0.8078 CInt: 0.0000;
+
 
     e54
     BLEU Score: 0.27431765985324336
@@ -119,6 +185,56 @@ The motion code is extracted by zero-padding the remaining parts
     ROUGE Score: 0.37324639453857406
     BERT Score: 0.8926103115081787
 
+    {'Matching_score': tensor(4.2625), 'gt_Matching_score': tensor(3.6208), 
+    'R_precision_top_1': tensor(0.3776), 'R_precision_top_2': tensor(0.5737), 'R_precision_top_3': tensor(0.6864), 
+    'gt_R_precision_top_1': tensor(0.4172), 'gt_R_precision_top_2': tensor(0.6037), 'gt_R_precision_top_3': tensor(0.7151), 
+    'Bleu_1': tensor(0.5141), 'Bleu_2': tensor(0.), 'Bleu_3': tensor(0.), 
+    'ROUGE_L': tensor(0.3940), 'CIDEr': tensor(0.0626), 
+    'Bleu_4': tensor(0.0949), 'Bert_F1': tensor(0.4071)}
+
+    ---> [M2T_EL4_DL4_NH8_PS] BLEU: (1): 0.3517 (2): 0.1755 (3): 0.0934 (4): 0.0478
+    ---> [M2T_EL4_DL4_NH8_PS] ROUGE_L: 0.2806
+    ---> [M2T_EL4_DL4_NH8_PS] CIDER: 0.0626
+    ---> [M2T_EL4_DL4_NH8_PS] BERT SCORE: 0.4069
+    ---> [M2T_EL4_DL4_NH8_PS] Mean: 3.4105 CInterval: 0.0000
+    ---> [ground truth] Mean: 2.9967 CInterval: 0.0000
+    ========== R_precision Summary ==========
+    ---> [M2T_EL4_DL4_NH8_PS](top 1) Mean: 0.4733 CInt: 0.0000;(top 2) Mean: 0.6737 CInt: 0.0000;(top 3) Mean: 0.7619 CInt: 0.0000;
+    ---> [ground truth](top 1) Mean: 0.5032 CInt: 0.0000;(top 2) Mean: 0.6925 CInt: 0.0000;(top 3) Mean: 0.7950 CInt: 0.0000;
+
+    e66
+    BLEU Score: 0.26643690177710017
+    BLEU-4 Score: 0.14159592969551832
+    METEOR Score: 0.27383470296002177
+    ROUGE Score: 0.3610452441875997
+    BERT Score: 0.890285849571228
+
+    {'Matching_score': tensor(4.1420), 'gt_Matching_score': tensor(3.6208), 
+    'R_precision_top_1': tensor(0.3976), 'R_precision_top_2': tensor(0.5864), 'R_precision_top_3': tensor(0.6998), 
+    'gt_R_precision_top_1': tensor(0.4172), 'gt_R_precision_top_2': tensor(0.6037), 'gt_R_precision_top_3': tensor(0.7151), 
+    'Bleu_1': tensor(0.5213), 'Bleu_2': tensor(0.), 'Bleu_3': tensor(0.), 
+    'ROUGE_L': tensor(0.3953), 'CIDEr': tensor(0.0615), 
+    'Bleu_4': tensor(0.0918), 
+    'Bert_F1': tensor(0.4060)}
+
+    ---> [M2T_EL4_DL4_NH8_PS] BLEU: (1): 0.3517 (2): 0.1699 (3): 0.0865 (4): 0.0437
+    ---> [M2T_EL4_DL4_NH8_PS] ROUGE_L: 0.2802
+    ---> [M2T_EL4_DL4_NH8_PS] CIDER: 0.0615
+    ---> [M2T_EL4_DL4_NH8_PS] BERT SCORE: 0.4059
+    ========== Matching Score Summary ==========
+    ---> [M2T_EL4_DL4_NH8_PS] Mean: 3.2859 CInterval: 0.0000
+    ---> [ground truth] Mean: 2.9690 CInterval: 0.0000
+    ========== R_precision Summary ==========
+    ---> [M2T_EL4_DL4_NH8_PS](top 1) Mean: 0.4679 CInt: 0.0000;(top 2) Mean: 0.6621 CInt: 0.0000;(top 3) Mean: 0.7603 CInt: 0.0000;
+    ---> [ground truth](top 1) Mean: 0.5134 CInt: 0.0000;(top 2) Mean: 0.7022 CInt: 0.0000;(top 3) Mean: 0.8026 CInt: 0.0000;
+
 
 # Attempt 22.3: Use humanml3d only
 Branch from attempt 22, and still uses padding
+
+    e30
+    BLEU Score: 0.2631338936253224
+    BLEU-4 Score: 0.1571397254604008
+    METEOR Score: 0.31064250090358075
+    ROUGE Score: 0.3703899755573297
+    BERT Score: 0.8907598853111267
