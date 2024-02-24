@@ -120,6 +120,39 @@ The motion code is extracted by zero-padding the remaining parts
     'Bleu_4': {'score': 0.33877902443286156, 'precisions': [0.5803204047217538, 0.35450819672131145, 0.2671358873870271, 0.23968435901957327], 'brevity_penalty': 1.0, 'length_ratio': 1.3030103274005713, 'translation_length': 59300, 'reference_length': 45510, 'time_elapsed': 0.8038599491119385}, 
     'Bert_F1': tensor(0.4166)}
 
+    tm2t test motion gpt:
+    {'Bleu_1': 0.3999965309697605, 'Bleu_2': 0.23229768870638673, 'Bleu_3': 0.10790567814838915, 'Bleu_4': 0.050031062564891114, 
+    'ROUGE_L': 0.3366613968243719, 'CIDEr': 0.08032443164687006, 'SPICE': 0.2131699377828462}
+
+    motiongpt test motiongpt:
+    ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+    ┃         Test metric          ┃         DataLoader 0         ┃
+    ┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
+    │       Metrics/Bert_F1        │      0.3191520571708679      │
+    │        Metrics/Bleu_1        │      0.4304918646812439      │
+    │        Metrics/Bleu_2        │             0.0              │
+    │        Metrics/Bleu_3        │             0.0              │
+    │        Metrics/Bleu_4        │      0.0634666159749031      │
+    │        Metrics/CIDEr         │      0.0803244337439537      │
+    │    Metrics/Matching_score    │      2.9884440898895264      │
+    │       Metrics/ROUGE_L        │      0.3480609357357025      │
+    │  Metrics/R_precision_top_1   │      0.5357758402824402      │
+    │  Metrics/R_precision_top_2   │      0.717025876045227       │
+    │  Metrics/R_precision_top_3   │      0.8075430989265442      │
+    │  Metrics/gt_Matching_score   │      2.9859986305236816      │
+    │ Metrics/gt_R_precision_top_1 │      0.5062500238418579      │
+    │ Metrics/gt_R_precision_top_2 │      0.7068965435028076      │
+    │ Metrics/gt_R_precision_top_3 │      0.8004310131072998      │
+    └──────────────────────────────┴──────────────────────────────┘
+
+    motiongpt test tm2t:
+    {'Matching_score': tensor(3.9407), 'gt_Matching_score': tensor(3.6200), 
+    'R_precision_top_1': tensor(0.4231), 'R_precision_top_2': tensor(0.6209), 'R_precision_top_3': tensor(0.7269), 
+    'gt_R_precision_top_1': tensor(0.4162), 'gt_R_precision_top_2': tensor(0.6075), 'gt_R_precision_top_3': tensor(0.7207), 
+    'Bleu_1': tensor(0.6178), 'Bleu_2': tensor(0.), 'Bleu_3': tensor(0.), 
+    'ROUGE_L': tensor(0.4741), 'CIDEr': tensor(0.7114), 
+    'Bleu_4': tensor(0.2200), 'Bert_F1': tensor(0.3728)}
+
 
 
 # Attempt 22.2: Use repeated motion code
@@ -238,3 +271,22 @@ Branch from attempt 22, and still uses padding
     METEOR Score: 0.31064250090358075
     ROUGE Score: 0.3703899755573297
     BERT Score: 0.8907598853111267
+
+    {'Matching_score': tensor(4.6625), 'gt_Matching_score': tensor(3.6208), 
+    'R_precision_top_1': tensor(0.3472), 'R_precision_top_2': tensor(0.5284), 'R_precision_top_3': tensor(0.6433), 
+    'gt_R_precision_top_1': tensor(0.4172), 'gt_R_precision_top_2': tensor(0.6037), 'gt_R_precision_top_3': tensor(0.7151), 
+    'Bleu_1': tensor(0.4764), 'Bleu_2': tensor(0.), 'Bleu_3': tensor(0.), 
+    'ROUGE_L': tensor(0.3788), 'CIDEr': tensor(0.0484), 
+    'Bleu_4': tensor(0.0768), 
+    'Bert_F1': tensor(0.3823)}
+
+    ---> [M2T_EL4_DL4_NH8_PS] BLEU: (1): 0.3140 (2): 0.1403 (3): 0.0689 (4): 0.0317
+    ---> [M2T_EL4_DL4_NH8_PS] ROUGE_L: 0.2571
+    ---> [M2T_EL4_DL4_NH8_PS] CIDER: 0.0484
+    ---> [M2T_EL4_DL4_NH8_PS] BERT SCORE: 0.3821
+    ========== Matching Score Summary ==========
+    ---> [M2T_EL4_DL4_NH8_PS] Mean: 3.9012 CInterval: 0.0000
+    ---> [ground truth] Mean: 2.9895 CInterval: 0.0000
+    ========== R_precision Summary ==========
+    ---> [M2T_EL4_DL4_NH8_PS](top 1) Mean: 0.3912 CInt: 0.0000;(top 2) Mean: 0.5741 CInt: 0.0000;(top 3) Mean: 0.6828 CInt: 0.0000;
+    ---> [ground truth](top 1) Mean: 0.5099 CInt: 0.0000;(top 2) Mean: 0.6955 CInt: 0.0000;(top 3) Mean: 0.7966 CInt: 0.0000;
