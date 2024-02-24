@@ -30,7 +30,7 @@ def get_music_beat(music_id, motion_fps):
 def beat_alignment(music_beats, motion_beats):
     ba = 0
     for bb in music_beats:
-        ba += np.exp(-np.min((motion_beats - bb)**2) / 2 / 9)
+        ba += np.exp(-np.min((motion_beats - bb) ** 2) / 2 / 9)
     return ba / len(music_beats)
 
 
@@ -38,6 +38,7 @@ if __name__ == '__main__':
     music_beat_dir = 'data/motion/music4all_beat'
 
     import argparse
+
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "-d",
