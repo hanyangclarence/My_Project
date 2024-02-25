@@ -35,7 +35,7 @@ def beat_alignment(music_beats, motion_beats):
 
 
 if __name__ == '__main__':
-    music_beat_dir = 'data/motion/music4all_beat'
+    music_beat_dir = 'data/music/music4all_beat'
 
     import argparse
 

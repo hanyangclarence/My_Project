@@ -128,21 +128,21 @@ The motion code is extracted by zero-padding the remaining parts
     ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
     ┃         Test metric          ┃         DataLoader 0         ┃
     ┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
-    │       Metrics/Bert_F1        │      0.3191520571708679      │
-    │        Metrics/Bleu_1        │      0.4304918646812439      │
+    │       Metrics/Bert_F1        │      0.3157098889350891      │
+    │        Metrics/Bleu_1        │      0.4261467456817627      │
     │        Metrics/Bleu_2        │             0.0              │
     │        Metrics/Bleu_3        │             0.0              │
-    │        Metrics/Bleu_4        │      0.0634666159749031      │
-    │        Metrics/CIDEr         │      0.0803244337439537      │
-    │    Metrics/Matching_score    │      2.9884440898895264      │
-    │       Metrics/ROUGE_L        │      0.3480609357357025      │
-    │  Metrics/R_precision_top_1   │      0.5357758402824402      │
-    │  Metrics/R_precision_top_2   │      0.717025876045227       │
-    │  Metrics/R_precision_top_3   │      0.8075430989265442      │
-    │  Metrics/gt_Matching_score   │      2.9859986305236816      │
-    │ Metrics/gt_R_precision_top_1 │      0.5062500238418579      │
-    │ Metrics/gt_R_precision_top_2 │      0.7068965435028076      │
-    │ Metrics/gt_R_precision_top_3 │      0.8004310131072998      │
+    │        Metrics/Bleu_4        │     0.06035727262496948      │
+    │        Metrics/CIDEr         │      0.079263836145401       │
+    │    Metrics/Matching_score    │      2.977738857269287       │
+    │       Metrics/ROUGE_L        │      0.3447147309780121      │
+    │  Metrics/R_precision_top_1   │      0.5338361859321594      │
+    │  Metrics/R_precision_top_2   │      0.7120689749717712      │
+    │  Metrics/R_precision_top_3   │      0.803232729434967       │
+    │  Metrics/gt_Matching_score   │      2.9336931705474854      │
+    │ Metrics/gt_R_precision_top_1 │      0.5150862336158752      │
+    │ Metrics/gt_R_precision_top_2 │      0.7150862216949463      │
+    │ Metrics/gt_R_precision_top_3 │      0.8028017282485962      │
     └──────────────────────────────┴──────────────────────────────┘
 
     motiongpt test tm2t:
