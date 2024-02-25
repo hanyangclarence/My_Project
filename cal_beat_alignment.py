@@ -20,9 +20,15 @@ def calc_motion_beat(keypoints):
 
 def get_music_beat(music_id, motion_fps):
     feature_path = pjoin(music_beat_dir, f'{music_id}.pth')
-    music_beat = torch.load(feature_path)['beat']
-    music_beat = music_beat / 32000 * motion_fps  # change to the time scale of motion
-    music_beat = music_beat.numpy()
+    music_beat_all = torch.load(feature_path)['beat']
+    music_beat_all = music_beat_all / 32000 * motion_fps  # change to the time scale of motion
+
+    music_beat = []
+    for b in music_beat_all:
+        if b < motion_fps * 10:
+            music_beat.append(b)
+
+    music_beat = np.asarray(music_beat)
     print(f'music_beat: {music_beat.shape}')
     return music_beat
 
