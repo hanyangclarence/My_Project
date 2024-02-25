@@ -25,7 +25,7 @@ def get_music_beat(music_id, motion_fps):
 
     music_beat = []
     for b in music_beat_all:
-        if b < motion_fps * 10:
+        if b < motion_fps * duration:
             music_beat.append(b)
 
     music_beat = np.asarray(music_beat)
@@ -42,6 +42,7 @@ def beat_alignment(music_beats, motion_beats):
 
 if __name__ == '__main__':
     music_beat_dir = 'data/music/music4all_beat'
+    duration = 5
 
     import argparse
 
@@ -57,7 +58,7 @@ if __name__ == '__main__':
 
     joint_dir = args.joint_dir
     music_id_list = os.listdir(joint_dir)
-    music_id_list = [s.split('.')[0] for s in music_id_list]
+    music_id_list = [s.split('.')[0] for s in music_id_list if s.endswith('.npy')]
     print(f'Total number of data to test: {len(music_id_list)}')
     total_num = len(music_id_list)
 
