@@ -146,12 +146,25 @@ The motion code is extracted by zero-padding the remaining parts
     └──────────────────────────────┴──────────────────────────────┘
 
     motiongpt test tm2t:
-    {'Matching_score': tensor(3.9407), 'gt_Matching_score': tensor(3.6200), 
-    'R_precision_top_1': tensor(0.4231), 'R_precision_top_2': tensor(0.6209), 'R_precision_top_3': tensor(0.7269), 
-    'gt_R_precision_top_1': tensor(0.4162), 'gt_R_precision_top_2': tensor(0.6075), 'gt_R_precision_top_3': tensor(0.7207), 
-    'Bleu_1': tensor(0.6178), 'Bleu_2': tensor(0.), 'Bleu_3': tensor(0.), 
-    'ROUGE_L': tensor(0.4741), 'CIDEr': tensor(0.7114), 
-    'Bleu_4': tensor(0.2200), 'Bert_F1': tensor(0.3728)}
+    ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+    ┃         Test metric          ┃         DataLoader 0         ┃
+    ┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
+    │       Metrics/Bert_F1        │     0.37267205119132996      │
+    │        Metrics/Bleu_1        │      0.6176044344902039      │
+    │        Metrics/Bleu_2        │             0.0              │
+    │        Metrics/Bleu_3        │             0.0              │
+    │        Metrics/Bleu_4        │     0.21983718872070312      │
+    │        Metrics/CIDEr         │      0.7112351059913635      │
+    │    Metrics/Matching_score    │      2.994671583175659       │
+    │       Metrics/ROUGE_L        │      0.474008172750473       │
+    │  Metrics/R_precision_top_1   │      0.5245689749717712      │
+    │  Metrics/R_precision_top_2   │      0.7155172228813171      │
+    │  Metrics/R_precision_top_3   │      0.8144396543502808      │
+    │  Metrics/gt_Matching_score   │      3.0347518920898438      │
+    │ Metrics/gt_R_precision_top_1 │      0.5010775923728943      │
+    │ Metrics/gt_R_precision_top_2 │      0.7021551728248596      │
+    │ Metrics/gt_R_precision_top_3 │      0.790517270565033       │
+    └──────────────────────────────┴──────────────────────────────┘
 
 
 
@@ -290,3 +303,69 @@ Branch from attempt 22, and still uses padding
     ========== R_precision Summary ==========
     ---> [M2T_EL4_DL4_NH8_PS](top 1) Mean: 0.3912 CInt: 0.0000;(top 2) Mean: 0.5741 CInt: 0.0000;(top 3) Mean: 0.6828 CInt: 0.0000;
     ---> [ground truth](top 1) Mean: 0.5099 CInt: 0.0000;(top 2) Mean: 0.6955 CInt: 0.0000;(top 3) Mean: 0.7966 CInt: 0.0000;
+
+
+    e42
+
+    ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+    ┃         Test metric          ┃         DataLoader 0         ┃
+    ┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
+    │       Metrics/Bert_F1        │     0.39984577894210815      │
+    │        Metrics/Bleu_1        │      0.513706386089325       │
+    │        Metrics/Bleu_2        │             0.0              │
+    │        Metrics/Bleu_3        │             0.0              │
+    │        Metrics/Bleu_4        │     0.09245716780424118      │
+    │        Metrics/CIDEr         │     0.05875365063548088      │
+    │    Metrics/Matching_score    │      3.4686620235443115      │
+    │       Metrics/ROUGE_L        │     0.39191925525665283      │
+    │  Metrics/R_precision_top_1   │     0.46918103098869324      │
+    │  Metrics/R_precision_top_2   │      0.6540948152542114      │
+    │  Metrics/R_precision_top_3   │      0.7607758641242981      │
+    │  Metrics/gt_Matching_score   │      2.9859986305236816      │
+    │ Metrics/gt_R_precision_top_1 │      0.5062500238418579      │
+    │ Metrics/gt_R_precision_top_2 │      0.7068965435028076      │
+    │ Metrics/gt_R_precision_top_3 │      0.8004310131072998      │
+    └──────────────────────────────┴──────────────────────────────┘
+
+
+    e54
+    ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+    ┃         Test metric          ┃         DataLoader 0         ┃
+    ┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
+    │       Metrics/Bert_F1        │      0.4029705226421356      │
+    │        Metrics/Bleu_1        │      0.5060538649559021      │
+    │        Metrics/Bleu_2        │             0.0              │
+    │        Metrics/Bleu_3        │             0.0              │
+    │        Metrics/Bleu_4        │     0.08624383807182312      │
+    │        Metrics/CIDEr         │     0.05646877735853195      │
+    │    Metrics/Matching_score    │      3.1541950702667236      │
+    │       Metrics/ROUGE_L        │     0.39340513944625854      │
+    │  Metrics/R_precision_top_1   │      0.5071120858192444      │
+    │  Metrics/R_precision_top_2   │      0.6978448033332825      │
+    │  Metrics/R_precision_top_3   │      0.7935344576835632      │
+    │  Metrics/gt_Matching_score   │      2.9859986305236816      │
+    │ Metrics/gt_R_precision_top_1 │      0.5062500238418579      │
+    │ Metrics/gt_R_precision_top_2 │      0.7068965435028076      │
+    │ Metrics/gt_R_precision_top_3 │      0.8004310131072998      │
+    └──────────────────────────────┴──────────────────────────────┘
+
+    e66
+    ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+    ┃         Test metric          ┃         DataLoader 0         ┃
+    ┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
+    │       Metrics/Bert_F1        │     0.40590012073516846      │
+    │        Metrics/Bleu_1        │      0.489648699760437       │
+    │        Metrics/Bleu_2        │             0.0              │
+    │        Metrics/Bleu_3        │             0.0              │
+    │        Metrics/Bleu_4        │     0.08454769849777222      │
+    │        Metrics/CIDEr         │     0.06067899614572525      │
+    │    Metrics/Matching_score    │      3.0756826400756836      │
+    │       Metrics/ROUGE_L        │      0.3950554430484772      │
+    │  Metrics/R_precision_top_1   │      0.5133620500564575      │
+    │  Metrics/R_precision_top_2   │      0.690517246723175       │
+    │  Metrics/R_precision_top_3   │      0.7862069010734558      │
+    │  Metrics/gt_Matching_score   │      2.9859986305236816      │
+    │ Metrics/gt_R_precision_top_1 │      0.5062500238418579      │
+    │ Metrics/gt_R_precision_top_2 │      0.7068965435028076      │
+    │ Metrics/gt_R_precision_top_3 │      0.8004310131072998      │
+    └──────────────────────────────┴──────────────────────────────┘
