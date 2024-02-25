@@ -18,7 +18,7 @@ def calc_motion_beat(keypoints):
     return motion_beats
 
 
-def get_music_beat(music_id, motion_fps):
+def get_extracted_music_beat(music_id, motion_fps):
     feature_path = pjoin(music_beat_dir, f'{music_id}.pth')
     music_beat_all = torch.load(feature_path)['beat']
     music_beat_all = music_beat_all / 32000 * motion_fps  # change to the time scale of motion
@@ -31,6 +31,15 @@ def get_music_beat(music_id, motion_fps):
     music_beat = np.asarray(music_beat)
     print(f'music_beat: {music_beat.shape}')
     return music_beat
+
+def detect_music_beat(music_id, motion_fps):
+    audio_path = pjoin(music_dir, music_id + '.mp3')
+    waveform, sr = librosa.load(audio_path, sr=32000)
+    tempo, beat_frames = librosa.beat.beat_track(y=waveform, sr=sr)
+    beat_times = librosa.frames_to_time(beat_frames, sr=sr)
+    beat_times *= motion_fps
+    print(f'music_beat: {beat_times.shape}')
+    return beat_times
 
 
 def beat_alignment(music_beats, motion_beats):
@@ -48,8 +57,15 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "-d",
+        "-j",
         "--joint_dir",
+        type=str,
+        default=None,
+        help="",
+    )
+    parser.add_argument(
+        "-m",
+        "--music_dir",
         type=str,
         default=None,
         help="",
@@ -57,6 +73,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     joint_dir = args.joint_dir
+    music_dir = args.music_dir
     music_id_list = os.listdir(joint_dir)
     music_id_list = [s.split('.')[0] for s in music_id_list if s.endswith('.npy')]
     print(f'Total number of data to test: {len(music_id_list)}')
@@ -68,7 +85,10 @@ if __name__ == '__main__':
         try:
             joint = np.load(joint_path)
             motion_beat = calc_motion_beat(joint)
-            music_beat = get_music_beat(music_id, 60)
+            if music_dir is None:
+                music_beat = get_extracted_music_beat(music_id, 60)
+            else:
+                music_beat = detect_music_beat(music_id, 60)
         except Exception as e:
             print(e)
             continue
