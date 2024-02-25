@@ -89,6 +89,9 @@ if __name__ == '__main__':
                 music_beat = get_extracted_music_beat(music_id, 60)
             else:
                 music_beat = detect_music_beat(music_id, 60)
+            if len(music_beat) == 0:
+                print(f'Error! music beat not detected')
+                continue
         except Exception as e:
             print(e)
             continue
