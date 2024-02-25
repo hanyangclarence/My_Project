@@ -65,8 +65,12 @@ if __name__ == '__main__':
     for music_id in music_id_list:
         joint_path = pjoin(joint_dir, f'{music_id}.npy')
         joint = np.load(joint_path)
-        motion_beat = calc_motion_beat(joint)
-        music_beat = get_music_beat(music_id, 60)
+        try:
+            motion_beat = calc_motion_beat(joint)
+            music_beat = get_music_beat(music_id, 60)
+        except Exception as e:
+            print(e)
+            continue
         print(f'music_beat: ', music_beat)
         print(f'motion_beat: ', motion_beat)
         score = beat_alignment(music_beat, motion_beat)
