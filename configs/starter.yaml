@@ -10,7 +10,7 @@ model:
     length_single_modal: 500
     feature_frame_rate: 50
 
-    stage: 'train_caption'
+    stage: 'train_music_motion'
     monitor: "val/loss"
 
     generation_params:
@@ -42,41 +42,41 @@ model:
       target: unimumo.models.text_generation_model.TextGenerator
       params:
         model: 't5-base'
-        max_length: 100
+        max_length: 64
         context_dim: 1024
         self_dim: 768
 
 data:
   target: train.DataModuleFromConfig
   params:
-    batch_size: 4
+    batch_size: 3
     wrap: True
     num_workers: 4
     train:
-      target: unimumo.data.music_motion_text_dataset_captioning.MusicMotionCaptioningDataset
+      target: unimumo.data.music_motion_text_dataset.MusicMotionTextDataset
       params:
         split: "val"
         music_meta_dir: 'data/music'
         motion_meta_dir: 'data/motion'
         music_code_dir: 'data/music/music4all_codes'
-        motion_code_dir: 'data/motion/motion_code'
+        motion_code_dir: 'data/motion/aligned_motion_code_exp122'
         duration: 10
+        dropout_prob: 0.6
         vqvae_sr: 32000
         natural_language_caption_ratio: 1.0
-        humanml3d_only: True
 
     validation:
-      target: unimumo.data.music_motion_text_dataset_captioning.MusicMotionCaptioningDataset
+      target: unimumo.data.music_motion_text_dataset.MusicMotionTextDataset
       params:
         split: "val"
         music_meta_dir: 'data/music'
         motion_meta_dir: 'data/motion'
         music_code_dir: 'data/music/music4all_codes'
-        motion_code_dir: 'data/motion/motion_code'
+        motion_code_dir: 'data/motion/aligned_motion_code_exp122'
         duration: 10
+        dropout_prob: 0.6
         vqvae_sr: 32000
         natural_language_caption_ratio: 1.0
-        humanml3d_only: True
 
 lightning:
   callbacks:
@@ -84,8 +84,8 @@ lightning:
       target: unimumo.loggers.MusicMotionLogger
       params:
         music_vqvae_path: 'pretrained/music_vqvae.bin'
-        motion_vqvae_path: 'pretrained/motion_vqvae.ckpt'
-        motion_vqvae_config_path: 'configs/train_motion_vqvae.yaml'
+        motion_vqvae_path: 'pretrained/motion_vqvae_122.ckpt'
+        motion_vqvae_config_path: 'configs/train_motion_vqvae_122.yaml'
         motion_dir: 'data/motion'
         epoch_frequency: 10
         batch_frequency: 2000
