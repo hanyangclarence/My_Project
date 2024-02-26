@@ -6,7 +6,7 @@ model:
     music_key: 'music_code'
     motion_key: 'motion_code'
     text_cond_key: 'text'
-    motion_weight: 0.1
+    motion_weight: 0.15
     length_single_modal: 500
     feature_frame_rate: 50
 
