@@ -215,7 +215,7 @@ class MusicMotionTransformer(pl.LightningModule):
 
         if self.stage == 'train_music_motion':  # train the music motion lm
             # # randomly choose the mode on this training step
-            mode = 'music_motion'
+            mode = random.choice(['music_motion', 'music2motion', 'motion2music'])
             text_condition = self.prepare_text_condition(text_cond)
 
             music_output, motion_output = self.model.compute_predictions(
@@ -296,7 +296,7 @@ class MusicMotionTransformer(pl.LightningModule):
         music_code, motion_code, text_cond = batch[self.music_key], batch[self.motion_key], batch[self.text_cond_key]
 
         if self.stage == 'train_music_motion':
-            mode = 'music_motion'
+            mode = random.choice(['music_motion', 'music2motion', 'motion2music'])
             text_condition = self.prepare_text_condition(text_cond)
 
             music_output, motion_output = self.model.compute_predictions(
