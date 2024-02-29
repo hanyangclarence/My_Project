@@ -1,5 +1,10 @@
+# To Run:
+Ablation 5: rerun full model
+Ablation 5.2: rerun full model with vocal
+Ablation 2.2
+
 # Running:
-ablation 1 (1482219), ablation 2 (1482237), ablation 3(1482275), ablation 4(1482311)
+
 
 # Testing:
 
