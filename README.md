@@ -1,7 +1,9 @@
 # To Run:
 Ablation 5: rerun full model
 Ablation 5.2: rerun full model with vocal
-Ablation 2.2
+Ablation 2.2: run with initialized codebook
+Ablation 6: finetune musicgen with our data
+Ablation 7: train the model from scratch
 
 # Running:
 
