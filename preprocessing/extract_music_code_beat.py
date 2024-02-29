@@ -21,10 +21,10 @@ from unimumo.audio.beat_detection.test_beat_detection import get_music_beat, bui
 
 
 def main(args):
-    data_dir = "data/music/audios"
+    data_dir = "data/music/music4all_original_audios"
     meta_dir = "data/music"
-    code_dir_name = 'music_code'
-    beat_dir_name = 'music_beat'
+    code_dir_name = 'music4all_with_vocal_code'
+    beat_dir_name = 'music4all_with_vocal_beat'
     save_dir = "data/music"
     vqvae_ckpt_path = 'pretrained/music_vqvae.bin'
     beat_tracker_ckpt_path = 'unimumo/audio/beat_detection/pretrained_models/baseline_v1'
