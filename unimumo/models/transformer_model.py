@@ -152,7 +152,26 @@ class MusicMotionTransformer(pl.LightningModule):
             name_count[name] = sum([s == name for s in filtered_name])
         print('All trainable parameters:')
         for name, count in name_count.items():
-            print(f'[{name}] x {count}')
+            print(f'\t[{name}] x {count}')
+
+        frozen_name_list = []
+        for name, parameter in self.named_parameters():
+            if not parameter.requires_grad:
+                frozen_name_list.append(name)
+        # remove repetitive names
+        filtered_name = []
+        for name in frozen_name_list:
+            name = name.split('.')
+            name = [s for s in name if not s.isdigit()]
+            name = '.'.join(name)
+            filtered_name.append(name)
+        name_set = list(OrderedDict.fromkeys(filtered_name))
+        name_count = {}
+        for name in name_set:
+            name_count[name] = sum([s == name for s in filtered_name])
+        print('\nAll frozen parameters:')
+        for name, count in name_count.items():
+            print(f'\t[{name}] x {count}')
 
     def training_step(
         self,
@@ -163,7 +182,7 @@ class MusicMotionTransformer(pl.LightningModule):
 
         if self.stage == 'train_music_motion':  # train the music motion lm
             # # randomly choose the mode on this training step
-            mode = random.choice(['music_motion', 'music2motion', 'motion2music'])
+            mode = 'music_motion'
             text_condition = self.prepare_text_condition(text_cond)  # here mode is useless actually
 
             music_output, motion_output = self.model.compute_predictions(
@@ -238,7 +257,7 @@ class MusicMotionTransformer(pl.LightningModule):
         music_code, motion_code, text_cond = batch[self.music_key], batch[self.motion_key], batch[self.text_cond_key]
 
         if self.stage == 'train_music_motion':
-            mode = random.choice(['music_motion', 'music2motion', 'motion2music'])
+            mode = 'music_motion'
             text_condition = self.prepare_text_condition(text_cond)
 
             music_output, motion_output = self.model.compute_predictions(
