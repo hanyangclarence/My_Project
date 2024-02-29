@@ -1,4 +1,4 @@
-ssh watson-zf
+ssh watson-zf   Zhen@0710
 zfchen
 ssh aimos-yining
 ssh nplfen01
