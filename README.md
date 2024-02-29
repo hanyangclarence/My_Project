@@ -8,3 +8,9 @@ I marked line 110-115 in load_mm_lm_model to remove the motion embedding initial
 
     e09
     musiccap: KL_Sigmoid:  6.48029; KL:  1.91514; PSNR: nan SSIM: nan ISc:  1.67678 (0.036570); KID: nan (nan) FD: 40.14126; FAD: 7.61303
+
+
+
+
+# Ablation 2.2
+Use motion codebook with initialization, but independent motion code
