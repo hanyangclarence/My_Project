@@ -187,7 +187,7 @@ if __name__ == "__main__":
         text_prompt = []
         music_id = []
         for batch_idx in range(len(text_prompt_full)):
-            if os.path.exists(pjoin(music_save_path, f'{music_id_full[batch_idx]}.mp3')):
+            if os.path.exists(pjoin(music_save_path, f'{music_id_full[batch_idx]}.mp3')) or os.path.exists(pjoin(music_save_path, f'{music_id_full[batch_idx]}.wav')):
                 continue
             else:
                 music_description = text_prompt_full[batch_idx]
