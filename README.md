@@ -1,5 +1,4 @@
 # To Run:
-Ablation 2.2: run with initialized codebook
 Ablation 7: train the model from scratch
 
 # Running:
