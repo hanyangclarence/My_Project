@@ -118,6 +118,14 @@ if __name__ == "__main__":
         help="Prob of choosing AIST style motion caption.",
     )
 
+    parser.add_argument(
+        "--save_wav_only",
+        type=bool,
+        required=False,
+        default=True,
+        help="Only save waveform",
+    )
+
     args = parser.parse_args()
 
     seed_everything(args.seed)
@@ -214,35 +222,45 @@ if __name__ == "__main__":
             os.makedirs(save_path, exist_ok=True)
 
             for batch_idx in range(len(text_prompt)):
-                music_filename = "%s.mp3" % music_id[batch_idx]
-                music_path = os.path.join(music_save_path, music_filename)
-                try:
-                    sf.write(music_path, waveform_gen[batch_idx], 32000)
-                except Exception as e:
-                    print(e)
-                    continue
 
-                motion_filename = "%s.mp4" % music_id[batch_idx]
-                motion_path = pjoin(motion_save_path, motion_filename)
-                try:
-                    skel_animation.plot_3d_motion(
-                        motion_path, kinematic_chain, motion_gen['joint'][batch_idx], title='None', vbeat=None,
-                        fps=model.motion_fps, radius=4
-                    )
-                except Exception as e:
-                    print(e)
-                    continue
+                if args.save_wav_only:
+                    music_filename = "%s.wav" % music_id[batch_idx]
+                    music_path = os.path.join(music_save_path, music_filename)
+                    try:
+                        sf.write(music_path, waveform_gen[batch_idx], 32000)
+                    except Exception as e:
+                        print(e)
+                        continue
+                else:
+                    music_filename = "%s.mp3" % music_id[batch_idx]
+                    music_path = os.path.join(music_save_path, music_filename)
+                    try:
+                        sf.write(music_path, waveform_gen[batch_idx], 32000)
+                    except Exception as e:
+                        print(e)
+                        continue
 
-                video_filename = "%s.mp4" % music_id[batch_idx]
-                video_path = pjoin(video_save_path, video_filename)
-                try:
-                    subprocess.call(f"ffmpeg -i {motion_path} -i {music_path} -c copy {video_path}", shell=True)
-                except Exception as e:
-                    print(e)
-                    continue
+                    motion_filename = "%s.mp4" % music_id[batch_idx]
+                    motion_path = pjoin(motion_save_path, motion_filename)
+                    try:
+                        skel_animation.plot_3d_motion(
+                            motion_path, kinematic_chain, motion_gen['joint'][batch_idx], title='None', vbeat=None,
+                            fps=model.motion_fps, radius=4
+                        )
+                    except Exception as e:
+                        print(e)
+                        continue
 
-                joint_filename = "%s.npy" % music_id[batch_idx]
-                joint_path = pjoin(joint_save_path, joint_filename)
-                np.save(joint_path, motion_gen['joint'][batch_idx])
+                    video_filename = "%s.mp4" % music_id[batch_idx]
+                    video_path = pjoin(video_save_path, video_filename)
+                    try:
+                        subprocess.call(f"ffmpeg -i {motion_path} -i {music_path} -c copy {video_path}", shell=True)
+                    except Exception as e:
+                        print(e)
+                        continue
+
+                    joint_filename = "%s.npy" % music_id[batch_idx]
+                    joint_path = pjoin(joint_save_path, joint_filename)
+                    np.save(joint_path, motion_gen['joint'][batch_idx])
 
         count += args.batch_size

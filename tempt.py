@@ -1,528 +1,266 @@
-from dataclasses import dataclass
-from functools import partial
-import math
-import typing as tp
-from tqdm import tqdm
+import argparse
+import os
 
+import numpy as np
 import torch
-from torch import nn
+from os.path import join as pjoin
+import soundfile as sf
+import pandas as pd
+import subprocess
+import random
+from pytorch_lightning import seed_everything
 
-from ..utils import utils
-from ..modules.streaming import StreamingModule
-from ..modules.transformer import StreamingTransformer, create_norm_fn
-from ..modules.conditioners import (
-    ConditionFuser,
-    ClassifierFreeGuidanceDropout,
-    AttributeDropout,
-    ConditioningProvider,
-    ConditioningAttributes,
-    ConditionType,
-)
-from ..modules.codebooks_patterns import CodebooksPatternProvider
-from ..modules.activations import get_activation_fn
+import sys
+from pathlib import Path
+# Get the directory of the current script
+current_dir = Path(__file__).parent
+# Get the parent directory
+parent_dir = current_dir.parent
+# Add the parent directory to sys.path
+sys.path.append(str(parent_dir))
 
-
-ConditionTensors = tp.Dict[str, ConditionType]
-CFGConditions = tp.Union[ConditionTensors, tp.Tuple[ConditionTensors, ConditionTensors]]
-
-
-def get_init_fn(method: str, input_dim: int, init_depth: tp.Optional[int] = None):
-    # Compute std
-    std = 1 / math.sqrt(input_dim)
-    # Rescale with depth
-    if init_depth is not None:
-        std = std / math.sqrt(2 * init_depth)
-
-    if method == 'gaussian':
-        return partial(
-            torch.nn.init.trunc_normal_, mean=0.0, std=std, a=-3 * std, b=3 * std
-        )
-    elif method == 'uniform':
-        bound = math.sqrt(3) * std  # ensure the standard deviation is `std`
-        return partial(torch.nn.init.uniform_, a=-bound, b=bound)
-    else:
-        raise ValueError("Unsupported layer initialization method")
+from unimumo.motion import skel_animation
+from unimumo.motion.utils import kinematic_chain
+from unimumo.models import UniMuMo
 
 
-def init_layer(
-    m: nn.Module,
-    method: str,
-    init_depth: tp.Optional[int] = None,
-    zero_bias_init: bool = False
-):
-    if isinstance(m, nn.Linear):
-        init_fn = get_init_fn(method, m.in_features, init_depth=init_depth)
-        if m.weight.device.type == 'cpu' and m.weight.dtype == torch.float16:
-            weight = m.weight.float()
-            init_fn(weight)
-            m.weight.data[:] = weight.half()
-        else:
-            init_fn(m.weight)
-        if zero_bias_init and m.bias is not None:
-            nn.init.constant_(m.bias, 0)
-    elif isinstance(m, nn.Embedding):
-        init_fn = get_init_fn(method, m.embedding_dim, init_depth=None)
-        if m.weight.device.type == 'cpu' and m.weight.dtype == torch.float16:
-            weight = m.weight.float()
-            init_fn(weight)
-            m.weight.data[:] = weight.half()
-        else:
-            init_fn(m.weight)
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
 
+    parser.add_argument(
+        "-s",
+        "--save_path",
+        type=str,
+        required=False,
+        help="The path to save model output",
+        default="./test_result_on_musiccap",
+    )
 
-class ScaledEmbedding(nn.Embedding):
-    def __init__(self, *args, lr=None, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.lr = lr
+    parser.add_argument(
+        "--musiccaps_dir",
+        type=str,
+        required=False,
+        help="The path to the directory containing musiccaps prompts",
+        default="data/music",
+    )
 
-    def make_optim_group(self):
-        group = {"params": list(self.parameters())}
-        if self.lr is not None:
-            group["lr"] = self.lr
-        return group
+    parser.add_argument(
+        "--motion_dir",
+        type=str,
+        required=False,
+        help="The path to motion data dir",
+        default='data/motion',
+    )
 
+    parser.add_argument(
+        "-gs",
+        "--guidance_scale",
+        type=float,
+        required=False,
+        default=3.0,
+        help="Guidance scale (Large => better quality and relavancy to text; Small => better diversity)",
+    )
 
-@dataclass
-class LMOutput:
-    logits: torch.Tensor  # [B, K, T, card]
-    mask: torch.Tensor  # [B, K, T]
+    parser.add_argument(
+        "-d",
+        "--duration",
+        type=float,
+        required=False,
+        default=10,
+        help="Generated audio time",
+    )
 
+    parser.add_argument(
+        "--seed",
+        type=int,
+        required=False,
+        default=42,
+        help="Change this value (any integer number) will lead to a different generation result.",
+    )
 
-class LMModel(StreamingModule):
-    def __init__(
-        self, pattern_provider: CodebooksPatternProvider, condition_provider: ConditioningProvider,
-        fuser: ConditionFuser, n_q: int = 8, card: int = 1024, dim: int = 128, num_heads: int = 8,
-        hidden_scale: int = 4, norm: str = 'layer_norm', norm_first: bool = False,
-        emb_lr: tp.Optional[float] = None, bias_proj: bool = True,
-        weight_init: tp.Optional[str] = None, depthwise_init: tp.Optional[str] = None,
-        zero_bias_init: bool = False, cfg_dropout: float = 0.0, cfg_coef: float = 1.0,
-        attribute_dropout: tp.Dict[str, tp.Dict[str, float]] = {}, two_step_cfg: bool = False,
-        **kwargs
-    ):
-        super().__init__()
-        self.cfg_coef = cfg_coef
-        self.cfg_dropout = ClassifierFreeGuidanceDropout(p=cfg_dropout)
-        self.att_dropout = AttributeDropout(p=attribute_dropout)
-        self.condition_provider = condition_provider
-        self.fuser = fuser
-        self.card = card
-        embed_dim = self.card + 2  # one special token for music, and one for motion
-        self.n_q = n_q
-        self.dim = dim
-        self.pattern_provider = pattern_provider
-        self.two_step_cfg = two_step_cfg
+    parser.add_argument(
+        "--ckpt",
+        type=str,
+        required=False,
+        default=None,
+        help="load checkpoint",
+    )
 
-        # zero-initialized embeddings for music and motion modality
-        self.music_token_emb = nn.Parameter(torch.zeros(dim))
-        self.motion_token_emb = nn.Parameter(torch.zeros(dim))
+    parser.add_argument(
+        "--start",
+        type=float,
+        required=False,
+        default=0.,
+        help="start ratio",
+    )
 
-        self.emb = nn.ModuleList([ScaledEmbedding(embed_dim, dim, lr=emb_lr) for _ in range(n_q)])
+    parser.add_argument(
+        "--end",
+        type=float,
+        required=False,
+        default=1.,
+        help="end ratio",
+    )
 
-        if 'activation' in kwargs:
-            kwargs['activation'] = get_activation_fn(kwargs['activation'])
-        self.transformer = StreamingTransformer(
-            d_model=dim, num_heads=num_heads, dim_feedforward=int(hidden_scale * dim),
-            norm=norm, norm_first=norm_first, **kwargs)
+    parser.add_argument(
+        "--batch_size",
+        type=int,
+        required=False,
+        default=20,
+        help="batch size for inference",
+    )
 
-        self.out_norm: tp.Optional[nn.Module] = None
-        if norm_first:
-            self.out_norm = create_norm_fn(norm, dim)
+    parser.add_argument(
+        "--aist_prob",
+        type=float,
+        required=False,
+        default=0.8,
+        help="Prob of choosing AIST style motion caption.",
+    )
 
-        # classification head for music
-        self.linears = nn.ModuleList([nn.Linear(dim, self.card, bias=bias_proj) for _ in range(n_q)])
-        # classification head for motion
-        self.motion_linears = nn.ModuleList([nn.Linear(dim, self.card, bias=bias_proj) for _ in range(n_q)])
+    parser.add_argument(
+        "--save_wav_only",
+        type=bool,
+        required=False,
+        default=True,
+        help="Only save waveform",
+    )
 
-        self._init_weights(weight_init, depthwise_init, zero_bias_init)
-        self._fsdp: tp.Optional[nn.Module]
-        self.__dict__['_fsdp'] = None
+    args = parser.parse_args()
 
-    def _init_weights(self, weight_init: tp.Optional[str], depthwise_init: tp.Optional[str], zero_bias_init: bool):
-        assert depthwise_init is None or depthwise_init in ['current', 'global']
-        assert depthwise_init is None or weight_init is not None, \
-            "If 'depthwise_init' is defined, a 'weight_init' method should be provided."
-        assert not zero_bias_init or weight_init is not None, \
-            "If 'zero_bias_init', a 'weight_init' method should be provided"
+    seed_everything(args.seed)
+    save_path = args.save_path
+    music_save_path = pjoin(save_path, 'music')
+    motion_save_path = pjoin(save_path, 'motion')
+    video_save_path = pjoin(save_path, 'video')
+    joint_save_path = pjoin(save_path, 'joint')
+    os.makedirs(save_path, exist_ok=True)
+    os.makedirs(music_save_path, exist_ok=True)
+    os.makedirs(motion_save_path, exist_ok=True)
+    os.makedirs(video_save_path, exist_ok=True)
+    os.makedirs(joint_save_path, exist_ok=True)
+    guidance_scale = args.guidance_scale
+    motion_dir = args.motion_dir
+    duration = args.duration
 
-        if weight_init is None:
-            return
+    # load random motion descriptions
+    humanml3d_text_dir = pjoin(motion_dir, 'humanml3d_text_description')
+    descriptions = os.listdir(humanml3d_text_dir)[:500]
+    humanml3d_text = []
+    for desc_txt in descriptions:
+        with open(pjoin(motion_dir, 'humanml3d_text_description', desc_txt), 'r', encoding='UTF-8') as f:
+            texts = []
+            lines = f.readlines()
+            for line in lines:
+                text = line.split('#')[0]
+                if text[-1] == '.':
+                    text = text[:-1]
+                humanml3d_text.append(text)
+    print(f'Loaded {len(humanml3d_text)} text prompts from humanml3d')
 
-        for emb_layer in self.emb:
-            init_layer(emb_layer, method=weight_init, init_depth=None, zero_bias_init=zero_bias_init)
+    aist_genres = ['break', 'pop', 'lock', 'middle hip-hop', 'house', 'waack', 'krump', 'street jazz', 'ballet jazz']
 
-        for layer_idx, tr_layer in enumerate(self.transformer.layers):
-            depth = None
-            if depthwise_init == 'current':
-                depth = layer_idx + 1
-            elif depthwise_init == 'global':
-                depth = len(self.transformer.layers)
-            init_fn = partial(init_layer, method=weight_init, init_depth=depth, zero_bias_init=zero_bias_init)
-            tr_layer.apply(init_fn)
+    # load musiccaps text prompt
+    assert os.path.exists(args.musiccaps_dir)
+    music_cap_df = pd.read_csv(pjoin(args.musiccaps_dir, 'musiccaps-public.csv'))
+    text_prompt_list = list(music_cap_df['caption'])
+    music_id_list = list(music_cap_df['ytid'])
 
-        for linear in self.linears:
-            init_layer(linear, method=weight_init, init_depth=None, zero_bias_init=zero_bias_init)
+    print('number of testing data:', len(text_prompt_list))
 
-        for linear in self.motion_linears:
-            init_layer(linear, method=weight_init, init_depth=None, zero_bias_init=zero_bias_init)
+    # load model
+    model = UniMuMo.from_checkpoint(args.ckpt)
 
-    @property
-    def music_special_token_id(self) -> int:
-        return self.card
+    count = 0
+    total_num = len(text_prompt_list)
+    start_idx = int(args.start * total_num)
+    end_idx = int(args.end * total_num)
+    count = max(start_idx, count)
+    print(f'start: {count}, end: {end_idx}')
+    while count < end_idx:
+        # text condition
+        text_prompt_full = text_prompt_list[count:min(end_idx, count + args.batch_size)]
+        music_id_full = music_id_list[count:min(end_idx, count + args.batch_size)]
+        print(f'{count + 1}-{min(end_idx, count + args.batch_size)}/{total_num}', end=', ')
 
-    @property
-    def motion_special_token_id(self) -> int:
-        return self.card + 1
-
-    @property
-    def num_codebooks(self) -> int:
-        return self.n_q
-
-    def forward(
-        self,
-        sequence: torch.LongTensor,
-        conditions: tp.List[ConditioningAttributes],
-        src_mask: tp.Optional[torch.Tensor] = None,
-        condition_tensors: tp.Optional[ConditionTensors] = None,
-        return_last_layer: bool = False
-    ) -> tp.Union[tp.Tuple[torch.Tensor, torch.Tensor], torch.Tensor]:
-        B, K, S = sequence.shape
-        assert K == self.num_codebooks, "Sequence shape must match the specified number of codebooks"
-
-        input_ = sum([self.emb[k](sequence[:, k]) for k in range(K)])  # [B, S, dim]
-
-        if condition_tensors is None:
-            assert not self._is_streaming, "Conditions tensors should be precomputed when streaming."
-            # apply dropout modules
-            conditions = self.cfg_dropout(conditions)
-            conditions = self.att_dropout(conditions)
-            tokenized = self.condition_provider.tokenize(conditions)
-            # encode conditions and fuse, both have a streaming cache to not recompute when generating.
-            condition_tensors = self.condition_provider(tokenized)
-        else:
-            assert not conditions, "Shouldn't pass both conditions and condition_tensors."
-
-        # add music and motion embedding
-        input_[:, :S // 2] += self.music_token_emb
-        input_[:, S // 2:] += self.motion_token_emb
-
-        input_, cross_attention_input = self.fuser(input_, condition_tensors)
-
-        out = self.transformer(
-            input_, separate_positional_encoding=True, cross_attention_src=cross_attention_input, src_mask=src_mask
-        )
-        if self.out_norm:
-            out = self.out_norm(out)
-
-        if return_last_layer:
-            return out  # [B, S, dim]
-
-        music_logits = torch.stack([self.linears[k](out[:, :S // 2]) for k in range(K)], dim=1)  # [B, K, S/2, card]
-        motion_logits = torch.stack([self.motion_linears[k](out[:, S // 2:]) for k in range(K)], dim=1)   # [B, K, S/2, card]
-
-        # remove the prefix from the model outputs
-        if len(self.fuser.fuse2cond['prepend']) > 0:
-            music_logits = music_logits[:, :, -S:]
-            motion_logits = motion_logits[:, :, -S:]
-
-        return music_logits, motion_logits
-
-    def compute_predictions(
-        self,
-        music_codes: torch.LongTensor,
-        motion_codes: torch.LongTensor,
-        conditions: tp.List[ConditioningAttributes],
-        condition_tensors: tp.Optional[ConditionTensors] = None
-    ) -> tp.Tuple[LMOutput, LMOutput]:
-        # prepare input sequence
-        B, K, T_music = music_codes.shape
-        T_motion = motion_codes.shape[-1]
-        assert T_music == T_motion
-        music_codes = music_codes.contiguous()
-        motion_codes = motion_codes.contiguous()
-
-        # map codes [B, K, T] into pattern sequence [B, K, S] using special_token_id for masked tokens
-        music_pattern = self.pattern_provider.get_pattern(T_music)
-        motion_pattern = self.pattern_provider.get_pattern(T_motion)
-        music_sequence_codes, _, _ = music_pattern.build_pattern_sequence(
-            music_codes, self.music_special_token_id, keep_only_valid_steps=True
-        )
-        motion_sequence_codes, _, _ = motion_pattern.build_pattern_sequence(
-            motion_codes, self.motion_special_token_id, keep_only_valid_steps=True
-        )
-
-        # concat music sequence and motion sequence in time dimension
-        sequence_codes = torch.cat((music_sequence_codes, motion_sequence_codes), dim=-1)
-
-        # prepare self-attention mask
-        self_attn_map = self.get_self_attn_mask(music_sequence_codes.shape[-1], motion_sequence_codes.shape[-1])
-
-        # apply model on pattern sequence
-        music_logits, motion_logits = self(
-            sequence_codes, conditions, src_mask=self_attn_map, condition_tensors=condition_tensors
-        )  # both [B, K, S, card]
-
-        # map back the logits on pattern sequence to logits on original codes: [B, K, S, card] -> [B, K, T, card]
-        # and provide the corresponding mask over invalid positions of tokens
-        music_logits = music_logits.permute(0, 3, 1, 2)  # [B, card, K, S]
-        motion_logits = motion_logits.permute(0, 3, 1, 2)
-        # note: we use nans as special token to make it obvious if we feed unexpected logits
-        music_logits, _, music_logits_mask = music_pattern.revert_pattern_logits(
-            music_logits, float('nan'), keep_only_valid_steps=True
-        )
-        motion_logits, _, motion_logits_mask = motion_pattern.revert_pattern_logits(
-            motion_logits, float('nan'), keep_only_valid_steps=True
-        )
-        music_logits = music_logits.permute(0, 2, 3, 1)  # [B, K, T, card]
-        music_logits_mask = music_logits_mask[None, :, :].expand(B, -1, -1)  # [K, T] -> [B, K, T]
-        motion_logits = motion_logits.permute(0, 2, 3, 1)  # [B, K, T, card]
-        motion_logits_mask = motion_logits_mask[None, :, :].expand(B, -1, -1)  # [K, T] -> [B, K, T]
-
-        return LMOutput(music_logits, music_logits_mask), LMOutput(motion_logits, motion_logits_mask)
-
-    def get_music_motion_context(
-        self,
-        music_codes: torch.LongTensor,
-        motion_codes: torch.LongTensor,
-        conditions: tp.List[ConditioningAttributes],
-        condition_tensors: tp.Optional[ConditionTensors] = None
-    ) -> torch.Tensor:
-        # prepare input sequence
-        B, K, T_music = music_codes.shape
-        T_motion = motion_codes.shape[-1]
-        assert T_music == T_motion
-        music_codes = music_codes.contiguous()
-        motion_codes = motion_codes.contiguous()
-
-        # map codes [B, K, T] into pattern sequence [B, K, S] using special_token_id for masked tokens
-        music_pattern = self.pattern_provider.get_pattern(T_music)
-        motion_pattern = self.pattern_provider.get_pattern(T_motion)
-        music_sequence_codes, _, _ = music_pattern.build_pattern_sequence(
-            music_codes, self.music_special_token_id, keep_only_valid_steps=True
-        )
-        motion_sequence_codes, _, _ = motion_pattern.build_pattern_sequence(
-            motion_codes, self.motion_special_token_id, keep_only_valid_steps=True
-        )
-
-        # concat music sequence and motion sequence in time dimension
-        sequence_codes = torch.cat((music_sequence_codes, motion_sequence_codes), dim=-1)
-
-        # prepare self-attention mask
-        self_attn_map = self.get_self_attn_mask(music_sequence_codes.shape[-1], motion_sequence_codes.shape[-1])
-
-        # apply model on pattern sequence
-        music_motion_context = self(
-            sequence_codes, conditions, src_mask=self_attn_map,
-            condition_tensors=condition_tensors, return_last_layer=True
-        )  # [B, S, dim]
-
-        return music_motion_context
-
-    def get_self_attn_mask(self, section_1: int, section_2: int) -> torch.Tensor:
-        device = next(iter(self.parameters())).device
-        mask = torch.zeros((section_1 + section_2, section_1 + section_2), dtype=torch.bool, device=device)
-
-        mask[:section_1, :section_1] = ~torch.ones((section_1, section_1), dtype=torch.bool, device=device).triu(1)
-        mask[section_1:section_1 + section_2, :section_1] = ~torch.ones((section_2, section_2), dtype=torch.bool, device=device).triu(1)
-        mask[:section_1, section_1:section_1 + section_2] = ~torch.ones((section_2, section_2), dtype=torch.bool, device=device).triu(1)
-        mask[section_1:section_1 + section_2, section_1:section_1 + section_2] = ~torch.ones((section_2, section_2), dtype=torch.bool, device=device).triu(1)
-
-        mask = torch.where(mask, 0., float('-inf'))
-        return mask
-
-    def _sample_next_token(
-        self,
-        music_sequence: torch.LongTensor,
-        motion_sequence: torch.LongTensor,
-        cfg_conditions: CFGConditions,
-        use_sampling: bool = False,
-        temp: float = 1.0,
-        top_k: int = 0,
-        top_p: float = 0.0,
-        cfg_coef: tp.Optional[float] = None,
-    ) -> tp.Tuple[torch.Tensor, torch.Tensor]:
-        B = music_sequence.shape[0]
-        cfg_coef = self.cfg_coef if cfg_coef is None else cfg_coef
-
-        sequence = torch.cat((music_sequence, motion_sequence), dim=-1)
-        src_mask = self.get_self_attn_mask(music_sequence.shape[-1], motion_sequence.shape[-1])
-
-        assert isinstance(cfg_conditions, dict)
-        condition_tensors = cfg_conditions
-        if condition_tensors:
-            # Preparing for CFG, predicting both conditional and unconditional logits.
-            sequence = torch.cat([sequence, sequence], dim=0)
-
-        music_all_logits, motion_all_logits = self(
-            sequence, conditions=[], condition_tensors=condition_tensors, src_mask=src_mask
-        )
-
-        if condition_tensors:
-            music_cond_logits, music_uncond_logits = music_all_logits.split(B, dim=0)  # [B, K, T, card]
-            motion_cond_logits, motion_uncond_logits = motion_all_logits.split(B, dim=0)  # [B, K, T, card]
-            music_logits = music_uncond_logits + (music_cond_logits - music_uncond_logits) * cfg_coef
-            motion_logits = motion_uncond_logits + (motion_cond_logits - motion_uncond_logits) * cfg_coef
-        else:
-            music_logits = music_all_logits
-            motion_logits = motion_all_logits
-
-        # sample music tokne
-        music_logits = music_logits.permute(0, 1, 3, 2)  # [B, K, card, T]
-        music_logits = music_logits[..., -1]  # [B, K, card]
-        # Apply softmax for sampling if temp > 0. Else, do greedy sampling to avoid zero division error.
-        if use_sampling and temp > 0.0:
-            probs = torch.softmax(music_logits / temp, dim=-1)
-            if top_p > 0.0:
-                music_next_token = utils.sample_top_p(probs, p=top_p)
-            elif top_k > 0:
-                music_next_token = utils.sample_top_k(probs, k=top_k)
+        # check whether each file has existed
+        text_prompt = []
+        music_id = []
+        for batch_idx in range(len(text_prompt_full)):
+            if os.path.exists(pjoin(music_save_path, f'{music_id_full[batch_idx]}.mp3')):
+                continue
             else:
-                music_next_token = utils.multinomial(probs, num_samples=1)
-        else:
-            music_next_token = torch.argmax(music_logits, dim=-1, keepdim=True)
+                music_description = text_prompt_full[batch_idx]
+                motion_description = None
+                if random.uniform(0, 1) < args.aist_prob:
+                    # use aist style prompts
+                    genre = random.choice(aist_genres)
+                    motion_description = f'The style of the dance is {genre}.'
+                else:
+                    motion_description = random.choice(humanml3d_text)
+                music_motion_description = music_description + ' <separation> ' + motion_description
+                text_prompt.append(music_motion_description)
+                music_id.append(music_id_full[batch_idx])
 
-        # sample music tokne
-        motion_logits = motion_logits.permute(0, 1, 3, 2)  # [B, K, card, T]
-        motion_logits = motion_logits[..., -1]  # [B, K, card]
-        # Apply softmax for sampling if temp > 0. Else, do greedy sampling to avoid zero division error.
-        if use_sampling and temp > 0.0:
-            probs = torch.softmax(motion_logits / temp, dim=-1)
-            if top_p > 0.0:
-                motion_next_token = utils.sample_top_p(probs, p=top_p)
-            elif top_k > 0:
-                motion_next_token = utils.sample_top_k(probs, k=top_k)
-            else:
-                motion_next_token = utils.multinomial(probs, num_samples=1)
-        else:
-            motion_next_token = torch.argmax(motion_logits, dim=-1, keepdim=True)
+        if len(text_prompt) == 0:
+            print(f'{count}-{count + args.batch_size} exists!')
+            count += args.batch_size
+            continue
 
-        return music_next_token, motion_next_token
+        print(f'generating {len(text_prompt)} audio')
 
-    @torch.no_grad()
-    def generate(
-        self,
-        conditions: tp.List[ConditioningAttributes] = [],
-        music_code: tp.Optional[torch.LongTensor] = None,
-        motion_code: tp.Optional[torch.LongTensor] = None,
-        num_samples: tp.Optional[int] = None,
-        max_gen_len: int = 256,
-        use_sampling: bool = True,
-        temp: float = 1.0,
-        top_k: int = 250,
-        top_p: float = 0.0,
-        cfg_coef: tp.Optional[float] = None,
-        check: bool = True,
-    ) -> tp.Tuple[torch.LongTensor, torch.LongTensor]:
-        assert not self.training, "generation shouldn't be used in training mode."
-        first_param = next(iter(self.parameters()))
-        device = first_param.device
+        for p in text_prompt:
+            print(len(p.split(' ')), p)
 
-        assert music_code is None or motion_code is None, "cannot provide both music and motion code."
-
-        # Checking all input shapes are consistent.
-        possible_num_samples = []
-        if num_samples is not None:
-            possible_num_samples.append(num_samples)
-        elif conditions:
-            possible_num_samples.append(len(conditions))
-        else:
-            possible_num_samples.append(1)
-        assert [x == possible_num_samples[0] for x in possible_num_samples], "Inconsistent inputs shapes"
-        num_samples = possible_num_samples[0]
-        assert num_samples > 0
-
-        # get classifier-free guidance conditions
-        cfg_conditions: CFGConditions
-        if conditions:
-            null_conditions = ClassifierFreeGuidanceDropout(p=1.0)(conditions)
-            conditions = conditions + null_conditions
-            tokenized = self.condition_provider.tokenize(conditions, device)
-            cfg_conditions = self.condition_provider(tokenized)
-        else:
-            cfg_conditions = {}
-
-        B, K = num_samples, self.num_codebooks
-
-        pattern = self.pattern_provider.get_pattern(max_gen_len)
-        # this token is used as default value for codes that are not generated yet
-        unknown_token = -1
-        # we generate codes up to the max_gen_len that will be mapped to the pattern sequence
-        # and replace the unknown code with provided code if necessary
-        if music_code is None:
-            music_gen_codes = torch.full((B, K, max_gen_len), unknown_token, dtype=torch.long, device=device)
-        else:
-            music_gen_codes = music_code
-        if motion_code is None:
-            motion_gen_codes = torch.full((B, K, max_gen_len), unknown_token, dtype=torch.long, device=device)
-        else:
-            motion_gen_codes = motion_code
-        assert music_gen_codes.shape[-1] == motion_gen_codes.shape[-1], "music code and motion code should be in equal time dimension"
-        # create the gen_sequence with proper interleaving from the pattern: [B, K, S]
-        music_gen_sequence, _, music_mask = pattern.build_pattern_sequence(music_gen_codes, self.music_special_token_id)   # gen_sequence: padded with self.music_special_token_id
-        motion_gen_sequence, _, motion_mask = pattern.build_pattern_sequence(motion_gen_codes, self.motion_special_token_id)   # gen_sequence: padded with self.motion_special_token_id
-
-        gen_sequence_len = music_gen_sequence.shape[-1]  # gen_sequence shape is [B, K, S]
-        for offset in tqdm(range(1, gen_sequence_len), desc=f"Generating music & motion of shape {music_gen_sequence.shape}"):
-            # get current sequence
-            music_curr_sequence = music_gen_sequence[..., 0:offset]
-            music_curr_mask = music_mask[None, ..., 0:offset].expand(B, -1, -1)
-            motion_curr_sequence = motion_gen_sequence[..., 0:offset]
-            motion_curr_mask = motion_mask[None, ..., 0:offset].expand(B, -1, -1)
-            if check:
-                # check coherence between mask and sequence
-                assert (music_curr_sequence == torch.where(music_curr_mask, music_curr_sequence, self.music_special_token_id)).all()
-                assert (motion_curr_sequence == torch.where(motion_curr_mask, motion_curr_sequence, self.motion_special_token_id)).all()
-                # should never happen as gen_sequence is filled progressively
-                assert not (music_curr_sequence == unknown_token).any()
-                assert not (motion_curr_sequence == unknown_token).any()
-            # sample next token from the model, next token shape is [B, K, 1]
-            music_next_token, motion_next_token = self._sample_next_token(
-                music_curr_sequence, motion_curr_sequence, cfg_conditions, use_sampling,
-                temp, top_k, top_p, cfg_coef=cfg_coef
+        with torch.no_grad():
+            waveform_gen, motion_gen = model.generate_music_motion(
+                text_description=text_prompt,
+                duration=duration,
+                conditional_guidance_scale=guidance_scale
             )
-            # ensure the tokens that should be masked are properly set to special_token_id
-            # as the model never output special_token_id
-            music_valid_mask = music_mask[..., offset:offset+1].expand(B, -1, -1)
-            music_next_token[~music_valid_mask] = self.music_special_token_id
-            motion_valid_mask = motion_mask[..., offset:offset + 1].expand(B, -1, -1)
-            motion_next_token[~motion_valid_mask] = self.motion_special_token_id
-            # We only write over unknown tokens
-            # i.e., update the prediction if they are not provided
-            if music_code is None:
-                music_gen_sequence[..., offset:offset+1] = torch.where(
-                    music_gen_sequence[..., offset:offset+1] == unknown_token,
-                    music_next_token, music_gen_sequence[..., offset:offset+1]
-                )
-            if motion_code is None:
-                motion_gen_sequence[..., offset:offset + 1] = torch.where(
-                    motion_gen_sequence[..., offset:offset + 1] == unknown_token,
-                    motion_next_token, motion_gen_sequence[..., offset:offset + 1]
-                )
 
-        # ensure sequence has been entirely filled
-        assert not (music_gen_sequence == unknown_token).any()
-        assert not (motion_gen_sequence == unknown_token).any()
-        # ensure gen_sequence pattern and mask are matching
-        # which means the gen_sequence is valid according to the pattern
-        assert (
-            music_gen_sequence == torch.where(music_mask[None, ...].expand(B, -1, -1), music_gen_sequence,
-                                              self.music_special_token_id)).all()
-        assert (
-            motion_gen_sequence == torch.where(motion_mask[None, ...].expand(B, -1, -1), motion_gen_sequence,
-                                               self.motion_special_token_id)).all()
-        # get back the codes, trimming the prompt if needed and cutting potentially incomplete timesteps
-        music_out_codes, out_indexes, music_out_mask = pattern.revert_pattern_sequence(music_gen_sequence, special_token=unknown_token)
-        motion_out_codes, out_indexes, motion_out_mask = pattern.revert_pattern_sequence(motion_gen_sequence, special_token=unknown_token)
+            os.makedirs(save_path, exist_ok=True)
 
-        # sanity checks over the returned codes and corresponding masks
-        assert (music_out_codes[..., :max_gen_len] != unknown_token).all()
-        assert (music_out_mask[..., :max_gen_len] == 1).all()
-        assert (motion_out_codes[..., :max_gen_len] != unknown_token).all()
-        assert (motion_out_mask[..., :max_gen_len] == 1).all()
+            for batch_idx in range(len(text_prompt)):
 
-        music_out_codes = music_out_codes[..., 0:max_gen_len]
-        motion_out_codes = motion_out_codes[..., 0:max_gen_len]
+                if args.save_wav_only:
+                    music_filename = "%s.wav" % music_id[batch_idx]
+                    music_path = os.path.join(music_save_path, music_filename)
+                    try:
+                        sf.write(music_path, waveform_gen[batch_idx], 32000)
+                    except Exception as e:
+                        print(e)
+                        continue
+                else:
+                    music_filename = "%s.mp3" % music_id[batch_idx]
+                    music_path = os.path.join(music_save_path, music_filename)
+                    try:
+                        sf.write(music_path, waveform_gen[batch_idx], 32000)
+                    except Exception as e:
+                        print(e)
+                        continue
 
-        # ensure the returned codes are all valid
-        assert (music_out_codes >= 0).all() and (music_out_codes <= self.card).all()
-        assert (motion_out_codes >= 0).all() and (motion_out_codes <= self.card).all()
-        return music_out_codes, motion_out_codes
+                    motion_filename = "%s.mp4" % music_id[batch_idx]
+                    motion_path = pjoin(motion_save_path, motion_filename)
+                    try:
+                        skel_animation.plot_3d_motion(
+                            motion_path, kinematic_chain, motion_gen['joint'][batch_idx], title='None', vbeat=None,
+                            fps=model.motion_fps, radius=4
+                        )
+                    except Exception as e:
+                        print(e)
+                        continue
+
+                    video_filename = "%s.mp4" % music_id[batch_idx]
+                    video_path = pjoin(video_save_path, video_filename)
+                    try:
+                        subprocess.call(f"ffmpeg -i {motion_path} -i {music_path} -c copy {video_path}", shell=True)
+                    except Exception as e:
+                        print(e)
+                        continue
+
+                    joint_filename = "%s.npy" % music_id[batch_idx]
+                    joint_path = pjoin(joint_save_path, joint_filename)
+                    np.save(joint_path, motion_gen['joint'][batch_idx])
+
+        count += args.batch_size
