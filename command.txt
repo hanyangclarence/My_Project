@@ -28,7 +28,7 @@ srun --gres=gpu:1 --cpus-per-task=4 -N 1 --mem=100G --time 06:00:00 --pty bash
 dcs:
 source ~/.bashrc_dcs
 salloc -N 1 --gres=gpu:6 -t 180
-
+salloc -N 1 -t 360
 
 
 launch test jobs:
