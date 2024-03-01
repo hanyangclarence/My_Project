@@ -107,12 +107,12 @@ def load_mm_lm_model(
     my_model_dict = model.state_dict()
     new_dict = {k: v for k, v in pretrained_dict.items() if k in my_model_dict.keys()}
 
-    # # initialize motion emb with the same weight as original emb
-    # for k in my_model_dict.keys():
-    #     if k.startswith('motion_emb.'):
-    #         music_emb_key = k.replace('motion_', '')
-    #         new_dict[k] = pretrained_dict[music_emb_key].clone()
-    #         print(f'Init {k} with {music_emb_key}')
+    # initialize motion emb with the same weight as original emb
+    for k in my_model_dict.keys():
+        if k.startswith('motion_emb.'):
+            music_emb_key = k.replace('motion_', '')
+            new_dict[k] = pretrained_dict[music_emb_key].clone()
+            print(f'Init {k} with {music_emb_key}')
 
     # initialize motion mlp with the same weight as original mlp
     for k in my_model_dict.keys():
