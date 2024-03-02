@@ -117,6 +117,7 @@ if __name__ == "__main__":
     end_idx = int(args.end * total_num)
     count = start_idx
     print(f'start: {count}, end: {end_idx}')
+    seed_everything(start_idx)
     while count < end_idx:
         music_id = random.choice(music_id_list)
         music_path = pjoin(music_dir, music_id + '.wav')
