@@ -36,7 +36,7 @@ if __name__ == "__main__":
     )
 
     parser.add_argument(
-        "--c",
+        "--music_dir",
         type=str,
         required=False,
         help="The path to music data dir",
