@@ -149,17 +149,18 @@ if __name__ == "__main__":
         joint_gen = joint_gen.reshape((-1, joint_gen.shape[-2], joint_gen.shape[-1]))
         print(f'waveform gen: {waveform_gen.shape}, joint_gen: {joint_gen.shape}')
         print(music_id)
+        save_id = f'{music_id}_{random.randint(1, 999999)}'
 
-        music_filename = "%s.mp3" % music_id
+        music_filename = "%s.mp3" % save_id
         music_path = os.path.join(music_save_path, music_filename)
         try:
             sf.write(music_path, waveform_gen, 32000)
         except Exception as e:
-            print(e)
+            print(e, file=sys.stderr)
             count += 1
             continue
 
-        motion_filename = "%s.mp4" % music_id
+        motion_filename = "%s.mp4" % save_id
         motion_path = pjoin(motion_save_path, motion_filename)
         try:
             skel_animation.plot_3d_motion(
@@ -167,22 +168,22 @@ if __name__ == "__main__":
                 fps=model.motion_fps, radius=4
             )
         except Exception as e:
-            print(e)
+            print(e, file=sys.stderr)
             count += 1
             continue
 
-        video_filename = "%s.mp4" % music_id
+        video_filename = "%s.mp4" % save_id
         video_path = pjoin(video_save_path, video_filename)
         try:
             subprocess.call(
                 f"ffmpeg -i {motion_path} -i {music_path} -c copy {video_path}",
                 shell=True)
         except Exception as e:
-            print(e)
+            print(e, file=sys.stderr)
             count += 1
             continue
 
-        joint_filename = "%s.npy" % music_id
+        joint_filename = "%s.npy" % save_id
         joint_path = pjoin(joint_save_path, joint_filename)
         np.save(joint_path, joint_gen)
 
