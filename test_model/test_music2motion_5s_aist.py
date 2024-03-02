@@ -86,7 +86,6 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    seed_everything(args.seed)
     save_path = args.save_path
     music_save_path = pjoin(save_path, 'music')
     motion_save_path = pjoin(save_path, 'motion')
@@ -117,7 +116,7 @@ if __name__ == "__main__":
     end_idx = int(args.end * total_num)
     count = start_idx
     print(f'start: {count}, end: {end_idx}')
-    seed_everything(start_idx)
+    seed_everything(start_idx * args.seed)
     while count < end_idx:
         music_id = random.choice(music_id_list)
         music_path = pjoin(music_dir, music_id + '.wav')
