@@ -148,8 +148,6 @@ if __name__ == "__main__":
         joint_gen = motion_gen['joint']
         joint_gen = joint_gen.reshape((-1, joint_gen.shape[-2], joint_gen.shape[-1]))
         print(f'waveform gen: {waveform_gen.shape}, joint_gen: {joint_gen.shape}')
-
-        music_id = music_id_list[count].split('/')[-1].split('.')[0]
         print(music_id)
 
         music_filename = "%s.mp3" % music_id
