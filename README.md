@@ -33,3 +33,9 @@ Use motion codebook with initialization, but independent motion code. That is, I
 
     e12
     KL_Sigmoid: -1.00000; KL: -1.00000; PSNR: nan SSIM: nan ISc:  1.62155 (0.033453); KID: nan (nan) FD: 41.90119; FAD: 8.56559
+
+    e15
+    KL_Sigmoid:  6.59444; KL:  2.00831; PSNR: nan SSIM: nan ISc:  1.72108 (0.030179); KID: nan (nan) FD: 41.27045; FAD: 6.91227
+
+    e18
+    KL_Sigmoid:  6.57830; KL:  1.94075; PSNR: nan SSIM: nan ISc:  1.69138 (0.015438); KID: nan (nan) FD: 39.77403; FAD: 9.06679
