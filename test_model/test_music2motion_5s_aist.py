@@ -36,19 +36,11 @@ if __name__ == "__main__":
     )
 
     parser.add_argument(
-        "--music_dir",
+        "--c",
         type=str,
         required=False,
         help="The path to music data dir",
-        default="data/music/audios"
-    )
-
-    parser.add_argument(
-        "--motion_dir",
-        type=str,
-        required=False,
-        help="The path to motion data dir",
-        default='data/motion',
+        default="/gpfs/u/home/LMCG/LMCGnngn/scratch/yanghan/aist_full/aist_plusplus_final/mp3/"
     )
 
     parser.add_argument(
@@ -107,32 +99,29 @@ if __name__ == "__main__":
     os.makedirs(joint_save_path, exist_ok=True)
     guidance_scale = args.guidance_scale
     music_dir = args.music_dir
-    motion_dir = args.motion_dir
     duration = 5
     num_segment = 1
 
     # load random motion descriptions
     aist_genres = ['break', 'pop', 'lock', 'middle hip-hop', 'house', 'waack', 'krump', 'street jazz', 'ballet jazz']
-    music_captions = json.load(open('data/music/music4all_captions_mullama.json', 'r'))
 
     music_id_list = os.listdir(music_dir)
     music_id_list = [s.split('.')[0] for s in music_id_list]
-    music_id_list = [s for s in music_id_list if s in music_captions.keys()]
-    music_id_list = music_id_list[:300]
     print('number of testing data:', len(music_id_list))
 
     # load model
     model = UniMuMo.from_checkpoint(args.ckpt)
 
-    total_num = len(music_id_list)
+    total_num = 300
     start_idx = int(args.start * total_num)
     end_idx = int(args.end * total_num)
     count = start_idx
     print(f'start: {count}, end: {end_idx}')
     while count < end_idx:
-        music_path = pjoin(music_dir, music_id_list[count] + '.wav')
+        music_id = random.choice(music_id_list)
+        music_path = pjoin(music_dir, music_id + '.wav')
         if not os.path.exists(music_path):
-            music_path = pjoin(music_dir, music_id_list[count] + '.mp3')
+            music_path = pjoin(music_dir, music_id + '.mp3')
         if not os.path.exists(music_path):
             print(f'{music_path} does not exist!')
             count += 1
@@ -143,7 +132,6 @@ if __name__ == "__main__":
         waveform = waveform[start_idx:start_idx + target_length]
         waveform = waveform.reshape((num_segment, 1, -1))
 
-        music_description = music_captions[music_id_list[count]]
         # generate some random motion captions
         genre = random.choice(aist_genres)
         motion_description = f'The style of the dance is {genre}.'
