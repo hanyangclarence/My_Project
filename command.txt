@@ -27,6 +27,8 @@ dcs:
 source ~/.bashrc_dcs
 salloc -N 1 --gres=gpu:6 -t 180
 
+salloc -N 1 -t 360
+
 
 
 launch test jobs:
