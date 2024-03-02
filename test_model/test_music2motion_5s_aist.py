@@ -149,7 +149,7 @@ if __name__ == "__main__":
         joint_gen = joint_gen.reshape((-1, joint_gen.shape[-2], joint_gen.shape[-1]))
         print(f'waveform gen: {waveform_gen.shape}, joint_gen: {joint_gen.shape}')
         print(music_id)
-        save_id = f'{music_id}_{random.randint(1, 999999)}'
+        save_id = f'{music_id}_{count}'
 
         music_filename = "%s.mp3" % save_id
         music_path = os.path.join(music_save_path, music_filename)
