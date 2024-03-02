@@ -11,6 +11,8 @@ Branch from 22, remove some randomness
     gs4, seed32: 'fid_k': 12.808291530636922, 'fid_m': (13.485018558936915-4.6405308673904604e-08j), 'div_k': 8.612601591647003, 'div_m': 8.29996225855688,  0.2283269589015701 0.22272614360668894(for pre-detected beats)
     gs4, seed37: 'fid_k': 16.70914929875532, 'fid_m': 8.850796353049986, 'div_k': 6.739906287093293, 'div_m': 7.387597926621852, 0.22957364989376466 0.21709814202304425(for pre-detected beats)
 
+    on aist
+
     e18
     KL_Sigmoid:  6.32082; KL:  1.93005; PSNR: nan SSIM: nan ISc:  1.62990 (0.015407); KID: nan (nan) FD: 40.18120; FAD: 8.31243
 
