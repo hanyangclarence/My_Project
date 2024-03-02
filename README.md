@@ -3,6 +3,7 @@ Ablation 7: train the model from scratch
 
 # Running:
 ablation 2.2
+ablation 5.2: train with vocals 1487444
 
 # Testing:
 ablation 5, ablation 6
