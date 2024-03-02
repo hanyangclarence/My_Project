@@ -187,7 +187,7 @@ if __name__ == "__main__":
         text_prompt = []
         music_id = []
         for batch_idx in range(len(text_prompt_full)):
-            if os.path.exists(pjoin(music_save_path, f'{music_id_full[batch_idx]}.mp3')):
+            if os.path.exists(pjoin(music_save_path, f'{music_id_full[batch_idx]}.mp3')) or os.path.exists(pjoin(music_save_path, f'{music_id_full[batch_idx]}.wav')):
                 continue
             else:
                 music_description = text_prompt_full[batch_idx]
@@ -229,7 +229,7 @@ if __name__ == "__main__":
                     try:
                         sf.write(music_path, waveform_gen[batch_idx], 32000)
                     except Exception as e:
-                        print(e)
+                        print(e, file=sys.stderr)
                         continue
                 else:
                     music_filename = "%s.mp3" % music_id[batch_idx]
@@ -237,7 +237,7 @@ if __name__ == "__main__":
                     try:
                         sf.write(music_path, waveform_gen[batch_idx], 32000)
                     except Exception as e:
-                        print(e)
+                        print(e, file=sys.stderr)
                         continue
 
                     motion_filename = "%s.mp4" % music_id[batch_idx]
@@ -248,7 +248,7 @@ if __name__ == "__main__":
                             fps=model.motion_fps, radius=4
                         )
                     except Exception as e:
-                        print(e)
+                        print(e, file=sys.stderr)
                         continue
 
                     video_filename = "%s.mp4" % music_id[batch_idx]
@@ -256,7 +256,7 @@ if __name__ == "__main__":
                     try:
                         subprocess.call(f"ffmpeg -i {motion_path} -i {music_path} -c copy {video_path}", shell=True)
                     except Exception as e:
-                        print(e)
+                        print(e, file=sys.stderr)
                         continue
 
                     joint_filename = "%s.npy" % music_id[batch_idx]
