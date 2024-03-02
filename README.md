@@ -27,3 +27,8 @@ I marked line 110-115 in load_mm_lm_model to remove the motion embedding initial
 
 # Ablation 2.2
 Use motion codebook with initialization, but independent motion code. That is, I remove the mark in line 110-115 in load_mm_lm_model
+
+    e09
+    KL_Sigmoid:  6.97517; KL:  2.07408; PSNR: nan SSIM: nan ISc:  1.54937 (0.024867); KID: nan (nan) FD: 47.85132; FAD: 10.31581
+
+    e12
