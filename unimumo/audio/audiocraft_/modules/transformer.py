@@ -629,7 +629,6 @@ class StreamingTransformerLayer(nn.TransformerEncoderLayer):
             assert stage == 'train_caption'
         x = src
         S = x.shape[1]
-        print(f'transforler layer forward in stage {stage}')
         if stage == 'train_music_motion':
             if self.norm_first:
                 x = x + self.layer_scale_1(
