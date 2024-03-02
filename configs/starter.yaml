@@ -6,7 +6,7 @@ model:
     music_key: 'music_code'
     motion_key: 'motion_code'
     text_cond_key: 'text'
-    motion_weight: 0.1
+    motion_weight: 0.15
     length_single_modal: 500
     feature_frame_rate: 50
 
@@ -48,7 +48,7 @@ model:
 data:
   target: train.DataModuleFromConfig
   params:
-    batch_size: 2
+    batch_size: 3
     wrap: True
     num_workers: 4
     train:
@@ -59,11 +59,10 @@ data:
         motion_meta_dir: 'data/motion'
         music_code_dir: 'data/music/music4all_codes'
         motion_code_dir: 'data/motion/aligned_motion_code_music4all_60hz'
-        duration: 5
+        duration: 10
         dropout_prob: 0.6
         vqvae_sr: 32000
         natural_language_caption_ratio: 1.0
-        ignore_file_name: 'music4all_ignore_new.txt'
 
     validation:
       target: unimumo.data.music_motion_text_dataset.MusicMotionTextDataset
@@ -73,11 +72,10 @@ data:
         motion_meta_dir: 'data/motion'
         music_code_dir: 'data/music/music4all_codes'
         motion_code_dir: 'data/motion/aligned_motion_code_music4all_60hz'
-        duration: 5
+        duration: 10
         dropout_prob: 0.6
         vqvae_sr: 32000
         natural_language_caption_ratio: 1.0
-        ignore_file_name: 'music4all_ignore_new.txt'
 
 lightning:
   callbacks:
