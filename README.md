@@ -16,3 +16,5 @@ Branch from 22, remove some randomness
 
     e21
     KL_Sigmoid:  6.60899; KL:  1.97002; PSNR: nan SSIM: nan ISc:  1.66043 (0.022882); KID: nan (nan) FD: 39.97653; FAD: 7.84137
+
+# Ablation 5.2: Train with vocal
