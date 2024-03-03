@@ -130,35 +130,21 @@ if __name__ == "__main__":
     count = start_idx
     print(f'start: {count}, end: {end_idx}')
     while count < end_idx:
-        music_path = pjoin(music_dir, music_id_list[count] + '.wav')
-        if not os.path.exists(music_path):
-            music_path = pjoin(music_dir, music_id_list[count] + '.mp3')
-        if not os.path.exists(music_path):
-            print(f'{music_path} does not exist!')
-            count += 1
-            continue
-        waveform, _ = librosa.load(music_path, sr=32000)
-        target_length = duration * 32000 * num_segment
-        start_idx = random.randint(0, waveform.shape[-1] - target_length - 1)
-        waveform = waveform[start_idx:start_idx + target_length]
-        waveform = waveform.reshape((num_segment, 1, -1))
-
         music_description = music_captions[music_id_list[count]]
         # generate some random motion captions
         genre = random.choice(aist_genres)
         motion_description = f'The style of the dance is {genre}.'
 
-        text_description = '<separation> ' + motion_description.capitalize()
+        text_description = music_description.capitalize() + ' <separation> ' + motion_description.capitalize()
 
-        print(f'waveform: {waveform.shape}, caption: {text_description}')
-        motion_gen = model.generate_motion_from_music(
-            waveform=waveform,
-            text_description=[text_description] * num_segment,
-            conditional_guidance_scale=guidance_scale
+        waveform_gen, motion_gen = model.generate_music_motion(
+            text_description=[text_description],
+            conditional_guidance_scale=guidance_scale,
+            duration=5
         )
-        waveform_gen = waveform.reshape(-1)
+        waveform_gen = waveform_gen.squeeze()
         joint_gen = motion_gen['joint']
-        joint_gen = joint_gen.reshape((-1, joint_gen.shape[-2], joint_gen.shape[-1]))
+        joint_gen = joint_gen.squeeze()
         print(f'waveform gen: {waveform_gen.shape}, joint_gen: {joint_gen.shape}')
 
         music_id = music_id_list[count].split('/')[-1].split('.')[0]
