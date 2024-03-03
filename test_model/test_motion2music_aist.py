@@ -1,11 +1,14 @@
 import argparse
 import os
+import random
+
 import torch
 from os.path import join as pjoin
 import soundfile as sf
 import numpy as np
 import subprocess
 from pytorch_lightning import seed_everything
+import json
 
 import sys
 from pathlib import Path
@@ -35,6 +38,14 @@ if __name__ == "__main__":
         required=False,
         help="The path to save model output",
         default="./test_motion2music_aist",
+    )
+
+    parser.add_argument(
+        "--music_meta_dir",
+        type=str,
+        required=False,
+        help="The path to meta data dir",
+        default="data/music",
     )
 
     parser.add_argument(
@@ -78,6 +89,14 @@ if __name__ == "__main__":
         help="load checkpoint",
     )
 
+    parser.add_argument(
+        "--caption",
+        type=str,
+        required=False,
+        default='The audio is a pop song with an Italian influence.',
+        help="motion prompt",
+    )
+
     args = parser.parse_args()
 
     seed_everything(args.seed)
@@ -92,6 +111,12 @@ if __name__ == "__main__":
     guidance_scale = args.guidance_scale
     aist_dir = args.aist_dir
     motion_dir = args.motion_dir
+    music_meta_dir = args.music_meta_dir
+    caption = args.caption
+
+    with open(pjoin(music_meta_dir, 'music4all_captions_mullama.json'), 'r') as caption_fd:
+        mullama_caption = json.load(caption_fd)
+    all_captions = list(mullama_caption.values())
 
     # read all aist motion data
     motion_data = {}
@@ -151,10 +176,15 @@ if __name__ == "__main__":
         motion = motion[None, ...]
         print(f'motion shape: {motion.shape}')
 
+        if caption is None:
+            random_music_description = random.choice(all_captions)
+        else:
+            random_music_description = caption
+
         # no text conditioning is provided here
         waveform_gen = model.generate_music_from_motion(
             motion_feature=motion,
-            text_description=['The audio is a rock song. <separation>'],
+            text_description=[f'{random_music_description} <separation>'],
             conditional_guidance_scale=guidance_scale
         )
         joint_gen = model.motion_vec_to_joint(
