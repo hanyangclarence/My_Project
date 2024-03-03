@@ -1,7 +1,8 @@
 # To Run:
-Ablation 7: train the model from scratch
+
 
 # Running:
+Ablation 7: train the model from scratch
 ablation 2.2
 ablation 5.2: train with vocals 1487444
 
