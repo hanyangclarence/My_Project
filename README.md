@@ -42,6 +42,9 @@ Now I change motion weight to 0.15
     motion2music:
     seed71: 0.9302325581395349 0.8837209302325582
 
+    text2motion
+    default: 'fid_k': 9.399568536440668, 'fid_m': 14.34595311292712, 'div_k': 8.721145626354044, 'div_m': 8.473095050731231
+
 
 ## Attempt 13.3: Try with new music4all_ignore
 
