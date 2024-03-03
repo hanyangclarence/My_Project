@@ -102,33 +102,6 @@ def load_mm_lm_model(
 
     model = builders.get_mm_lm_model(cfg)
 
-    # load part of the pretrained weight that is included in our model
-    pretrained_dict = pkg['best_state']
-    my_model_dict = model.state_dict()
-    new_dict = {k: v for k, v in pretrained_dict.items() if k in my_model_dict.keys()}
-
-    # initialize motion emb with the same weight as original emb
-    for k in my_model_dict.keys():
-        if k.startswith('motion_emb.'):
-            music_emb_key = k.replace('motion_', '')
-            new_dict[k] = pretrained_dict[music_emb_key].clone()
-            print(f'Init {k} with {music_emb_key}')
-    # initialize motion mlp with the same weight as original mlp
-    for k in my_model_dict.keys():
-        if 'linear1_motion' in k or 'linear2_motion' in k or 'norm1_motion' in k or 'norm2_motion' in k:
-            original_key_name = k.replace('_motion', '')
-            new_dict[k] = pretrained_dict[original_key_name].clone()
-            print(f'Init {k} with {original_key_name}')
-    # initialize the captioning self-attn module with corresponding weight
-    for k in my_model_dict.keys():
-        if 'captioning_self_attn' in k:
-            original_key_name = k.replace('captioning_', '')
-            new_dict[k] = pretrained_dict[original_key_name].clone()
-            print(f'Init {k} with {original_key_name}')
-
-    my_model_dict.update(new_dict)
-
-    model.load_state_dict(my_model_dict)
     model.eval()
     model.cfg = cfg
     return model
