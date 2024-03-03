@@ -20,3 +20,15 @@ Branch from 22, remove some randomness
     KL_Sigmoid:  6.60899; KL:  1.97002; PSNR: nan SSIM: nan ISc:  1.66043 (0.022882); KID: nan (nan) FD: 39.97653; FAD: 7.84137
 
 # Ablation 5.2: Train with vocal
+
+    e09
+    'frechet_distance': 44.0925, 'frechet_audio_distance': 6.6353, 'kl_sigmoid': 6.9534, 'kl_softmax': 2.0419
+
+    e12
+    'frechet_distance': 42.9537, 'frechet_audio_distance': 4.2991, 'kl_sigmoid': 7.564, 'kl_softmax': 2.1225
+
+    e15
+    'frechet_distance': 39.8829, 'frechet_audio_distance': 4.9938, 'kl_sigmoid': 7.4121, 'kl_softmax': 2.1162
+
+    e18
+    'frechet_distance': 41.3883, 'frechet_audio_distance': 6.4271, 'kl_sigmoid': 6.9695, 'kl_softmax': 2.0753
