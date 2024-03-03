@@ -25,7 +25,7 @@ Branch from 22, remove some randomness
     'frechet_distance': 44.0925, 'frechet_audio_distance': 6.6353, 'kl_sigmoid': 6.9534, 'kl_softmax': 2.0419
 
     e12
-    'frechet_distance': 42.9537, 'frechet_audio_distance': 4.2991, 'kl_sigmoid': 7.564, 'kl_softmax': 2.1225
+    'frechet_distance': 42.9537, 'frechet_audio_distance': 4.2991, 'kl_sigmoid': 7.564, 'kl_softmax': 2.1225 CLAP: 0.2896
 
     e15
     'frechet_distance': 39.8829, 'frechet_audio_distance': 4.9938, 'kl_sigmoid': 7.4121, 'kl_softmax': 2.1162
