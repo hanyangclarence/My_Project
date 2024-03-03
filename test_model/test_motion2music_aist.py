@@ -107,7 +107,7 @@ if __name__ == "__main__":
 
     with open(pjoin(music_meta_dir, 'music4all_captions_mullama.json'), 'r') as caption_fd:
         mullama_caption = json.load(caption_fd)
-    all_captions = mullama_caption.values()
+    all_captions = list(mullama_caption.values())
 
     # read all aist motion data
     motion_data = {}
