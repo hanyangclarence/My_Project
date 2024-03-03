@@ -10,5 +10,5 @@
     KL_Sigmoid: -1.00000; KL: -1.00000; PSNR: nan SSIM: nan ISc:  1.66567 (0.023302); KID: nan (nan) FD: 41.15890; FAD: 8.23247
 
     e21
-    KL_Sigmoid: -1.00000; KL: -1.00000; PSNR: nan SSIM: nan ISc:  1.65184 (0.020251); KID: nan (nan) FD: 38.47302; FAD: 5.78504
+    KL_Sigmoid:  6.52527; KL:  1.96699; PSNR: nan SSIM: nan ISc:  1.65047 (0.020280); KID: nan (nan) FD: 38.33673; FAD: 5.80895
     'frechet_distance': 45.2191, 'frechet_audio_distance': 5.8359, 'kl_sigmoid': 7.0409, 'kl_softmax': 2.0908  CLAP: 0.2821
