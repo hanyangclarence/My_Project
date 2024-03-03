@@ -31,6 +31,7 @@ Now I change motion weight to 0.15
     e18, gs4: 'frechet_distance': 46.5963, 'frechet_audio_distance': 7.1516, 'kl_sigmoid': 7.0043, 'kl_softmax': 2.0852
     e21, gs4: 'frechet_distance': 45.3224, 'frechet_audio_distance': 5.9036, 'kl_sigmoid': 7.058, 'kl_softmax': 2.0773
     (new metrics) KL_Sigmoid:  6.61594; KL:  1.99115; PSNR: nan SSIM: nan ISc:  1.61455 (0.024696); KID: nan (nan) FD: 38.52773; FAD: 5.93870
+    CLAP: 0.267
 
     motion 5s: e18 and e21 looks the best, but might be a bit overfit
     e12, gs3: 'fid_k': 12.921445971613068, 'fid_m': 24.939611892884685, 'div_k': 8.544877247367815, 'div_m': 7.583071551841238
