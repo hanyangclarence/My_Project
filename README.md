@@ -26,6 +26,7 @@ Branch from 22, remove some randomness
 
     e12
     'frechet_distance': 42.9537, 'frechet_audio_distance': 4.2991, 'kl_sigmoid': 7.564, 'kl_softmax': 2.1225 CLAP: 0.2896
+    KL_Sigmoid:  6.52679; KL:  1.95412; PSNR: nan SSIM: nan ISc:  1.77271 (0.025851); KID: nan (nan) FD: 31.62746; FAD: 4.11130
 
     e15
     'frechet_distance': 39.8829, 'frechet_audio_distance': 4.9938, 'kl_sigmoid': 7.4121, 'kl_softmax': 2.1162
