@@ -40,7 +40,7 @@ if __name__ == "__main__":
         type=str,
         required=False,
         help="The path to music data dir",
-        default="/gpfs/u/home/LMCG/LMCGnngn/scratch/yanghan/aist_full/aist_plusplus_final/mp3/"
+        default="data/motion/edge_test/music_sliced"
     )
 
     parser.add_argument(
@@ -84,8 +84,17 @@ if __name__ == "__main__":
         help="end ratio",
     )
 
+    parser.add_argument(
+        "--caption",
+        type=bool,
+        required=False,
+        default=True,
+        help="",
+    )
+
     args = parser.parse_args()
 
+    seed_everything(args.seed)
     save_path = args.save_path
     music_save_path = pjoin(save_path, 'music')
     motion_save_path = pjoin(save_path, 'motion')
@@ -98,11 +107,20 @@ if __name__ == "__main__":
     os.makedirs(joint_save_path, exist_ok=True)
     guidance_scale = args.guidance_scale
     music_dir = args.music_dir
-    duration = 5
-    num_segment = 1
 
     # load random motion descriptions
-    aist_genres = ['break', 'pop', 'lock', 'middle hip-hop', 'house', 'waack', 'krump', 'street jazz', 'ballet jazz']
+    aist_genre_map = {
+        'gBR': 'break',
+        'gPO': 'pop',
+        'gLO': 'lock',
+        'gMH': 'middle hip-hop',
+        'gLH': 'LA style hip-hop',
+        'gHO': 'house',
+        'gWA': 'waack',
+        'gKR': 'krump',
+        'gJS': 'street jazz',
+        'gJB': 'ballet jazz'
+    }
 
     music_id_list = os.listdir(music_dir)
     music_id_list = [s.split('.')[0] for s in music_id_list]
@@ -111,14 +129,13 @@ if __name__ == "__main__":
     # load model
     model = UniMuMo.from_checkpoint(args.ckpt)
 
-    total_num = 300
+    total_num = len(music_id_list)
     start_idx = int(args.start * total_num)
     end_idx = int(args.end * total_num)
     count = start_idx
     print(f'start: {count}, end: {end_idx}')
-    seed_everything(start_idx * args.seed)
     while count < end_idx:
-        music_id = random.choice(music_id_list)
+        music_id = music_id_list[count]
         music_path = pjoin(music_dir, music_id + '.wav')
         if not os.path.exists(music_path):
             music_path = pjoin(music_dir, music_id + '.mp3')
@@ -127,21 +144,22 @@ if __name__ == "__main__":
             count += 1
             continue
         waveform, _ = librosa.load(music_path, sr=32000)
-        target_length = duration * 32000 * num_segment
-        start_idx = random.randint(0, waveform.shape[-1] - target_length - 1)
-        waveform = waveform[start_idx:start_idx + target_length]
-        waveform = waveform.reshape((num_segment, 1, -1))
+        waveform = waveform[None, None, ...]
 
-        # generate some random motion captions
-        genre = random.choice(aist_genres)
+        # create motion captions
+        if args.caption:
+            genre_id = music_id.split('_')[0]
+            genre = aist_genre_map[genre_id]
+        else:
+            genre = random.choice(list(aist_genre_map.values()))
         motion_description = f'The style of the dance is {genre}.'
 
         text_description = '<separation> ' + motion_description.capitalize()
 
-        print(f'waveform: {waveform.shape}, caption: {text_description}')
+        print(f'{music_id}, waveform: {waveform.shape}, caption: {text_description}')
         motion_gen = model.generate_motion_from_music(
             waveform=waveform,
-            text_description=[text_description] * num_segment,
+            text_description=[text_description],
             conditional_guidance_scale=guidance_scale
         )
         waveform_gen = waveform.reshape(-1)
@@ -149,10 +167,7 @@ if __name__ == "__main__":
         joint_gen = joint_gen.reshape((-1, joint_gen.shape[-2], joint_gen.shape[-1]))
         print(f'waveform gen: {waveform_gen.shape}, joint_gen: {joint_gen.shape}')
 
-        save_id = f'{music_id}_{count}'
-        print(save_id)
-
-        music_filename = "%s.mp3" % save_id
+        music_filename = "%s.mp3" % music_id
         music_path = os.path.join(music_save_path, music_filename)
         try:
             sf.write(music_path, waveform_gen, 32000)
@@ -161,7 +176,7 @@ if __name__ == "__main__":
             count += 1
             continue
 
-        motion_filename = "%s.mp4" % save_id
+        motion_filename = "%s.mp4" % music_id
         motion_path = pjoin(motion_save_path, motion_filename)
         try:
             skel_animation.plot_3d_motion(
@@ -173,7 +188,7 @@ if __name__ == "__main__":
             count += 1
             continue
 
-        video_filename = "%s.mp4" % save_id
+        video_filename = "%s.mp4" % music_id
         video_path = pjoin(video_save_path, video_filename)
         try:
             subprocess.call(
@@ -184,7 +199,7 @@ if __name__ == "__main__":
             count += 1
             continue
 
-        joint_filename = "%s.npy" % save_id
+        joint_filename = "%s.npy" % music_id
         joint_path = pjoin(joint_save_path, joint_filename)
         np.save(joint_path, joint_gen)
 
