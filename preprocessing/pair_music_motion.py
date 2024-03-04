@@ -50,7 +50,8 @@ for motion_id in test_data_id_list:
 
     music_id = motion_id.split('_')[4]
     music_path = pjoin(full_music_dir, music_id + '.wav')
-    wave, sr = librosa.load(music_path, sr=32000)
+    wave, _ = librosa.load(music_path, sr=32000)
+    sr = 32000
 
     wave_cropped = wave[:duration * sr]
 
