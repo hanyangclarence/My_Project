@@ -53,7 +53,7 @@ for motion_id in test_data_id_list:
     wave, _ = librosa.load(music_path, sr=32000)
     sr = 32000
 
-    wave_cropped = wave[:duration * sr]
+    wave_cropped = wave[:int(duration * sr)]
 
     soundfile.write(pjoin(music_save_dir, motion_id + '.wav'), wave_cropped, samplerate=sr)
     np.save(pjoin(motion_save_dir, motion_id + '.npy'), motion)
