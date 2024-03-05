@@ -41,5 +41,10 @@ Branch from 22, remove some randomness
 
 
 # Beat align data augmentation:
-    Music4all:
-    0.6405556492262795  0.8496486425460217
+    beat align:
+    0.6469453947399015
+    0.8573409276040591
+    
+    linear distance
+    6.3357893634829985
+    1.7848308924070977
