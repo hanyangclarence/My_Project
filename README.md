@@ -2,12 +2,14 @@
 
 
 # Running:
-Ablation 7: train the model from scratch
-ablation 2.2
-ablation 5.2: train with vocals 1487444
+ablation 2.1
+ablation 3
+>>>>>>> origin/main
 
 # Testing:
-ablation 5, ablation 6
+ablation 1 (1490323)
+ablation 7 (1490258)
+
 
 
 
