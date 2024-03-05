@@ -38,3 +38,8 @@ Branch from 22, remove some randomness
 
     e18
     'frechet_distance': 41.3883, 'frechet_audio_distance': 6.4271, 'kl_sigmoid': 6.9695, 'kl_softmax': 2.0753
+
+
+# Beat align data augmentation:
+    Music4all:
+    0.6405556492262795  0.8496486425460217
