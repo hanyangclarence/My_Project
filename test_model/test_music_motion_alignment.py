@@ -96,8 +96,11 @@ if __name__ == '__main__':
 
         music_length = waveform.shape[0]
         music_target_length = duration * sr
-        start_idx = random.randint(0, music_length - music_target_length)
-        waveform = waveform[start_idx:start_idx + music_target_length]
+        if music_length > music_target_length:
+            start_idx = random.randint(0, music_length - music_target_length)
+            waveform = waveform[start_idx:start_idx + music_target_length]
+        else:
+            print(f'!!!, {music_length}, {music_id}')
 
         music_beat = detect_music_beat(waveform, motion_fps=60)
 
