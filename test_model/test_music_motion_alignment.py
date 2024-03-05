@@ -104,12 +104,12 @@ if __name__ == '__main__':
 
         music_beat = detect_music_beat(waveform, motion_fps=60)
 
-        motion_path = pjoin(motion_meta_dir, 'train', 'joint_vecs', motion_id + '.npy')
+        motion_path = pjoin(motion_meta_dir, 'train', 'joint_vecs', motion_id)
         if not os.path.exists(motion_path):
-            motion_path = pjoin(motion_meta_dir, 'test', 'joint_vecs', motion_id + '.npy')
+            motion_path = pjoin(motion_meta_dir, 'test', 'joint_vecs', motion_id)
         if not os.path.exists(motion_path):
-            motion_path = pjoin(motion_meta_dir, 'val', 'joint_vecs', motion_id + '.npy')
-        assert os.path.exists(motion_path)
+            motion_path = pjoin(motion_meta_dir, 'val', 'joint_vecs', motion_id)
+        assert os.path.exists(motion_path), motion_path
 
         motion = np.load(motion_path)
 
