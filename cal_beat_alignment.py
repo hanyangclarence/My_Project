@@ -34,6 +34,8 @@ def get_extracted_music_beat(music_id, motion_fps):
 
 def detect_music_beat(music_id, motion_fps):
     audio_path = pjoin(music_dir, music_id + '.mp3')
+    if not os.path.exists(audio_path):
+        audio_path = pjoin(music_dir, music_id + '.wav')
     waveform, sr = librosa.load(audio_path, sr=32000)
     tempo, beat_frames = librosa.beat.beat_track(y=waveform, sr=sr)
     beat_times = librosa.frames_to_time(beat_frames, sr=sr)
