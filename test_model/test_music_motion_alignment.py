@@ -179,6 +179,8 @@ if __name__ == '__main__':
 
         count += 1
 
+    print(sum(prev_score) / len(prev_score))
+    print(sum(after_score) / len(after_score))
 
 
 
