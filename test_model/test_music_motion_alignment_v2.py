@@ -105,6 +105,9 @@ if __name__ == '__main__':
             print(f'!!!, {music_length}, {music_id}')
 
         music_beat = detect_music_beat(waveform, motion_fps=60)
+        if len(music_beat) == 0:
+            print(f'music beat length = 0! ')
+            continue
 
         motion_path = pjoin(motion_meta_dir, 'train', 'joint_vecs', motion_id)
         if not os.path.exists(motion_path):
