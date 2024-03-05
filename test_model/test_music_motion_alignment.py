@@ -7,7 +7,7 @@ import os
 from os.path import join as pjoin
 import torch
 from dtw import *
-
+from pytorch_lightning import seed_everything
 from scipy.ndimage import gaussian_filter as G
 from scipy.signal import argrelextrema
 
@@ -62,6 +62,8 @@ def normalize_motion(vec):
 
 
 if __name__ == '__main__':
+    seed_everything(2023)
+
     music_dir = '/gpfs/u/home/LMCG/LMCGnngn/scratch/yanghan/aist_full/aist_plusplus_final/wav'
     motion_meta_dir = 'data/motion'
 
