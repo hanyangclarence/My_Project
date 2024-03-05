@@ -64,7 +64,8 @@ def normalize_motion(vec):
 if __name__ == '__main__':
     seed_everything(2023)
 
-    music_dir = '/gpfs/u/home/LMCG/LMCGnngn/scratch/yanghan/aist_full/aist_plusplus_final/wav'
+    # music_dir = '/gpfs/u/home/LMCG/LMCGnngn/scratch/yanghan/aist_full/aist_plusplus_final/wav'
+    music_dir = 'data/music/audios'
     motion_meta_dir = 'data/motion'
 
 
