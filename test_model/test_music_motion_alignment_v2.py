@@ -62,6 +62,14 @@ def beat_alignment(music_beats, motion_beats):
     return ba / len(music_beats)
 
 
+def my_beat_alignment(music_beats, motion_beats):
+    ba = 0
+    for bb in music_beats:
+        ba += np.min(np.abs(bb - motion_beats))
+        # ba += np.exp(-np.min((motion_beats - bb) ** 2) / 2 / 9)
+    return ba / len(music_beats)
+
+
 if __name__ == '__main__':
     seed_everything(2023)
 
@@ -74,11 +82,10 @@ if __name__ == '__main__':
     duration = 10
     sr = 32000
 
-
-
-
     prev_score = []
     after_score = []
+    prev_linear_score = []
+    after_linear_score = []
 
     music_id_list = os.listdir(music_dir)
     motion_id_list = os.listdir(pjoin(motion_meta_dir, 'train', 'joint_vecs')) + os.listdir(pjoin(motion_meta_dir, 'test', 'joint_vecs')) + os.listdir(pjoin(motion_meta_dir, 'val', 'joint_vecs'))
@@ -139,6 +146,8 @@ if __name__ == '__main__':
 
         prev_alignment_score = beat_alignment(music_beat, motion_beat_prev)
         prev_score.append(prev_alignment_score)
+        prev_linear_alignment_score = my_beat_alignment(music_beat, motion_beat_prev)
+        prev_linear_score.append(prev_linear_alignment_score)
 
         # Do alignment
         mbeat = (np.rint(music_beat)).astype(int)
@@ -185,13 +194,17 @@ if __name__ == '__main__':
 
         after_alignment_score = beat_alignment(music_beat, motion_beat_after)
         after_score.append(after_alignment_score)
+        after_linear_alignment_score = my_beat_alignment(music_beat, motion_beat_after)
+        after_linear_score.append(after_linear_alignment_score)
 
-        print(f'{count}, {prev_alignment_score}, {after_alignment_score}')
+        print(f'{count}, {prev_alignment_score}, {after_alignment_score} || {prev_linear_alignment_score}, {after_linear_alignment_score}')
 
         count += 1
 
     print(sum(prev_score) / len(prev_score))
     print(sum(after_score) / len(after_score))
+    print(sum(prev_linear_score) / len(prev_linear_score))
+    print(sum(after_linear_score) / len(after_linear_score))
 
 
 
