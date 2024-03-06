@@ -11,12 +11,12 @@ to be chosen
     e12
     musiccap: KL_Sigmoid:  6.53567; KL:  1.96374; PSNR: nan SSIM: nan ISc:  1.66183 (0.019639); KID: nan (nan) FD: 40.36085; FAD: 6.88864 LSD: nan
     'fid_k': 39.849298058884415, 'fid_m': 45.40374917105626, 'div_k': 10.776742870027539, 'div_m': 6.377351811862444
-    CLAP: 0.2511
+    'frechet_distance': 43.7212, 'frechet_audio_distance': 6.6404, 'kl_sigmoid': 7.1058, 'kl_softmax': 2.0555  CLAP: 0.2511
 
     e15
     musiccap: KL_Sigmoid:  6.74169; KL:  1.96009; PSNR: nan SSIM: nan ISc:  1.62045 (0.013945); KID: nan (nan) FD: 42.62187; FAD: 8.18120 LSD: nan
     'fid_k': 46.74992737991923, 'fid_m': 32.50009591179025, 'div_k': 8.453274003281907, 'div_m': 6.060379975825515    
-    CLAP: 0.2462
+    'frechet_distance': 45.4507, 'frechet_audio_distance': 7.5612, 'kl_sigmoid': 7.0688, 'kl_softmax': 2.0345  CLAP: 0.2462
 
     e18
     musiccap: KL_Sigmoid:  6.39716; KL:  1.94688; PSNR: nan SSIM: nan ISc:  1.66234 (0.022927); KID: nan (nan) FD: 37.34306; FAD: 6.16977 LSD: nan
