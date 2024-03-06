@@ -7,6 +7,7 @@
     e12
     KL_Sigmoid: -1.00000; KL: -1.00000; PSNR: nan SSIM: nan ISc:  1.69242 (0.034415); KID: nan (nan) FD: 37.03971; FAD: 6.53547
     {'fid_k': 19.1420505971508, 'fid_m': 22.213234887524536, 'div_k': 7.470423707298877, 'div_m': 6.549423734650032, 'div_k_gt': 9.250034450753242, 'div_m_gt': 7.342270033142343}
+    'frechet_distance': 45.6848, 'frechet_audio_distance': 6.2888, 'kl_sigmoid': 7.0709, 'kl_softmax': 2.1093
 
     e15
     KL_Sigmoid: -1.00000; KL: -1.00000; PSNR: nan SSIM: nan ISc:  1.63277 (0.038541); KID: nan (nan) FD: 40.83860; FAD: 6.67696 
