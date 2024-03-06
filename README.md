@@ -13,6 +13,7 @@ I marked line 110-115 in load_mm_lm_model to remove the motion embedding initial
     e12
     musiccap: KL_Sigmoid:  6.52585; KL:  2.01038; PSNR: nan SSIM: nan ISc:  1.63621 (0.031905); KID: nan (nan) FD: 41.24742; FAD: 6.29425 LSD: nan
     'fid_k': 13.552077023740054, 'fid_m': (19.52993503865393-2.5271796908558268e-08j), 'div_k': 7.258716442519539, 'div_m': 8.04408471705257
+    'frechet_distance': 48.8993, 'frechet_audio_distance': 6.7518, 'kl_sigmoid': 7.2462, 'kl_softmax': 2.1377  CLAP: 0.2568
 
     e15
     musiccap: KL_Sigmoid:  6.54431; KL:  1.96355; PSNR: nan SSIM: nan ISc:  1.58956 (0.019734); KID: nan (nan) FD: 40.92968; FAD: 7.80536
