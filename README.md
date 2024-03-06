@@ -36,6 +36,7 @@ Use motion codebook with initialization, but independent motion code. That is, I
 
     e15
     KL_Sigmoid:  6.59444; KL:  2.00831; PSNR: nan SSIM: nan ISc:  1.72108 (0.030179); KID: nan (nan) FD: 41.27045; FAD: 6.91227
+    'frechet_distance': 45.495, 'frechet_audio_distance': 6.7861, 'kl_sigmoid': 6.9381, 'kl_softmax': 2.0638
 
     e18
     KL_Sigmoid:  6.57830; KL:  1.94075; PSNR: nan SSIM: nan ISc:  1.69138 (0.015438); KID: nan (nan) FD: 39.77403; FAD: 9.06679
