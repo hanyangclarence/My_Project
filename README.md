@@ -3,7 +3,8 @@ Branch from 22, and try only removing MoE, and still keep the separate codebooks
 
     e09
     musiccap: KL_Sigmoid:  6.29416; KL:  1.84242; PSNR: nan SSIM: nan ISc:  1.72206 (0.034916); KID: nan (nan) FD: 37.57727; FAD: 6.49722 
-    'fid_k': 17.187739653382522, 'fid_m': 14.314392467449956, 'div_k': 6.554643239087219, 'div_m': 6.233596009894491        
+    'fid_k': 17.187739653382522, 'fid_m': 14.314392467449956, 'div_k': 6.554643239087219, 'div_m': 6.233596009894491     
+    'frechet_distance': 43.0222, 'frechet_audio_distance': 6.8253, 'kl_sigmoid': 7.0895, 'kl_softmax': 2.0742
 
     e12
     KL_Sigmoid:  6.48866; KL:  1.91772; PSNR: nan SSIM: nan ISc:  1.74677 (0.037820); KID: nan (nan) FD: 36.94533; FAD: 6.46155 LSD: nan
