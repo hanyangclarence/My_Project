@@ -16,6 +16,6 @@
     'frechet_distance': 50.4685, 'frechet_audio_distance': 7.0977, 'kl_sigmoid': 7.56, 'kl_softmax': 2.2193  CLAP: 0.2343
 
     e45
-    CLAP: 0.2308
+    'frechet_distance': 48.2057, 'frechet_audio_distance': 7.546, 'kl_sigmoid': 7.1261, 'kl_softmax': 2.1641 CLAP: 0.2308
 
     
