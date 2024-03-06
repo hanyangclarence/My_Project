@@ -112,7 +112,6 @@ if __name__ == "__main__":
     os.makedirs(feature_22_3_save_path, exist_ok=True)
     batch_size = 1
     motion_dir = args.motion_dir
-    motion_code_dir = args.motion_code_dir
     duration = args.duration
 
     motion_id_list = []
@@ -121,10 +120,7 @@ if __name__ == "__main__":
             if os.path.exists(pjoin(motion_dir, 'test', 'joint_vecs', line.strip() + '.npy')):
                 motion_id_list.append(line.strip())
 
-    paired_music_motion = os.listdir(motion_code_dir)
-
     print('number of motion data:', len(motion_id_list), file=sys.stderr)
-    print('number of paired motion: ', len(paired_music_motion), file=sys.stderr)
 
     # load model
     model = UniMuMo.from_checkpoint(args.ckpt)
