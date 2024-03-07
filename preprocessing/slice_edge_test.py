@@ -67,4 +67,4 @@ def slice_aistpp(motion_dir, wav_dir, stride=0.5, length=5):
 
 
 if __name__ == '__main__':
-    slice_aistpp('data/motion/edge_test/motion', 'data/motion/edge_test/music')
+    slice_aistpp('data/motion/edge_test/motion_feature', 'data/motion/edge_test/music')
