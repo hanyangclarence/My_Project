@@ -48,3 +48,7 @@ Branch from 22, remove some randomness
     linear distance
     6.3357893634829985
     1.7848308924070977
+
+    test aist gt:
+    0.6332440974181944
+    3.96150303500847
