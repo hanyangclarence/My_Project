@@ -47,25 +47,25 @@ The motion code is extracted by zero-padding the remaining parts
     ROUGE Score: 0.3692726558458997
     BERT Score: 0.8913907408714294
 
-    (completed)
-    {'Matching_score': tensor(4.0418), 'gt_Matching_score': tensor(3.6208), 
-    'R_precision_top_1': tensor(0.3899), 'R_precision_top_2': tensor(0.5864), 'R_precision_top_3': tensor(0.7047), 
-    'gt_R_precision_top_1': tensor(0.4172), 'gt_R_precision_top_2': tensor(0.6037), 'gt_R_precision_top_3': tensor(0.7151), 
-    'Bleu_1': {'score': 0.5290103973264018, 'precisions': [0.5290103973264018], 'brevity_penalty': 1.0, 'length_ratio': 1.0539086195088543, 'translation_length': 43088, 'reference_length': 40884, 'time_elapsed': 0.3450002670288086}, 
-    'Bleu_2': tensor(0.), 'Bleu_3': tensor(0.), 'ROUGE_L': tensor(0.3950), 'CIDEr': tensor(0.0620), 
-    'Bleu_4': {'score': 0.09803511639095609, 'precisions': [0.5290103973264018, 0.221959213401311, 0.049644970414201184, 0.015845795033612293], 'brevity_penalty': 1.0, 'length_ratio': 1.0539086195088543, 'translation_length': 43088, 'reference_length': 40884, 'time_elapsed': 0.9336991310119629}, 
-    'Bert_F1': tensor(0.4041)}
-
-    ---> [M2T_EL4_DL4_NH8_PS] BLEU: (1): 0.3469 (2): 0.1752 (3): 0.0929 (4): 0.0489
-    ---> [M2T_EL4_DL4_NH8_PS] ROUGE_L: 0.2787
-    ---> [M2T_EL4_DL4_NH8_PS] CIDER: 0.0620
-    ---> [M2T_EL4_DL4_NH8_PS] BERT SCORE: 0.4041
-    ========== Matching Score Summary ==========
-    ---> [M2T_EL4_DL4_NH8_PS] Mean: 3.1769 CInterval: 0.0000
-    ---> [ground truth] Mean: 2.9873 CInterval: 0.0000
-    ========== R_precision Summary ==========
-    ---> [M2T_EL4_DL4_NH8_PS](top 1) Mean: 0.4851 CInt: 0.0000;(top 2) Mean: 0.6905 CInt: 0.0000;(top 3) Mean: 0.7933 CInt: 0.0000;
-    ---> [ground truth](top 1) Mean: 0.5162 CInt: 0.0000;(top 2) Mean: 0.7056 CInt: 0.0000;(top 3) Mean: 0.8026 CInt: 0.0000;
+    ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+    ┃         Test metric          ┃         DataLoader 0         ┃
+    ┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
+    │       Metrics/Bert_F1        │      0.4040625989437103      │
+    │        Metrics/Bleu_1        │      0.5288795828819275      │
+    │        Metrics/Bleu_2        │             0.0              │
+    │        Metrics/Bleu_3        │             0.0              │
+    │        Metrics/Bleu_4        │     0.09801016002893448      │
+    │        Metrics/CIDEr         │     0.06198832020163536      │
+    │    Metrics/Matching_score    │      3.1780734062194824      │
+    │       Metrics/ROUGE_L        │     0.39477699995040894      │
+    │  Metrics/R_precision_top_1   │      0.5010775923728943      │
+    │  Metrics/R_precision_top_2   │      0.679741382598877       │
+    │  Metrics/R_precision_top_3   │      0.7870689630508423      │
+    │  Metrics/gt_Matching_score   │       2.97703218460083       │
+    │ Metrics/gt_R_precision_top_1 │      0.5058189630508423      │
+    │ Metrics/gt_R_precision_top_2 │      0.7064655423164368      │
+    │ Metrics/gt_R_precision_top_3 │      0.7971982955932617      │
+    └──────────────────────────────┴──────────────────────────────┘
 
     e66
     BLEU Score: 0.26096739866440294
