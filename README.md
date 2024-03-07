@@ -22,5 +22,5 @@ to be chosen
 
     e18
     musiccap: KL_Sigmoid:  6.39716; KL:  1.94688; PSNR: nan SSIM: nan ISc:  1.66234 (0.022927); KID: nan (nan) FD: 37.34306; FAD: 6.16977 LSD: nan
-    'frechet_distance': 45.9957, 'frechet_audio_distance': 6.9443, 'kl_sigmoid': 6.7534, 'kl_softmax': 2.0676  CLAP: 0.2632   
-    beat alignment: 0.18800827177614504
+    'frechet_distance': 45.0805, 'frechet_audio_distance': 6.4134, 'kl_sigmoid': 6.8121, 'kl_softmax': 2.0599  CLAP: 0.2655   
+    'fid_k': 25.557540721937784, 'fid_m': (48.52061770658164-1.2503873239590035e-08j), 'div_k': 9.216962018537947, 'div_m': 6.584667736399533 beat alignment: 0.18800827177614504
