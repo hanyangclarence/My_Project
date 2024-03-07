@@ -74,7 +74,7 @@ if __name__ == '__main__':
     seed_everything(2023)
 
     music_dir = '/gpfs/u/home/LMCG/LMCGnngn/scratch/yanghan/My_Project/data/motion/edge_test/music_sliced/'
-    motion_meta_dir = '/gpfs/u/home/LMCG/LMCGnngn/scratch/yanghan/My_Project/data/motion/edge_test/motion_sliced/'
+    motion_meta_dir = '/gpfs/u/home/LMCG/LMCGnngn/scratch/yanghan/My_Project/data/motion/edge_test/motion_feature_sliced/'
 
     sr = 32000
 
