@@ -88,8 +88,8 @@ if __name__ == '__main__':
 
     print(f'Total music: {len(music_id_list)}, total motion: {len(motion_id_list)}')
 
-    motion_mean = np.load(pjoin(motion_meta_dir, 'Mean.npy'))
-    motion_std = np.load(pjoin(motion_meta_dir, 'Std.npy'))
+    motion_mean = np.load(pjoin('data/motion', 'Mean.npy'))
+    motion_std = np.load(pjoin('data/motion', 'Std.npy'))
 
     count = 0
     while count < len(music_id_list):
