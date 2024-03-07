@@ -94,7 +94,7 @@ if __name__ == '__main__':
     count = 0
     while count < len(music_id_list):
         music_id = music_id_list[count]
-        motion_id = motion_id_list[count]
+        motion_id = music_id.split('.')[0] + '.npy'
 
         waveform, _ = librosa.load(pjoin(music_dir, music_id), sr=sr)
 
