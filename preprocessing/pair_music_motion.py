@@ -37,11 +37,11 @@ os.makedirs(motion_save_dir, exist_ok=True)
 os.makedirs(music_save_dir, exist_ok=True)
 
 for motion_id in test_data_id_list:
-    motion_path = pjoin(motion_data_meta_dir, 'train', 'new_joints', motion_id + '.npy')
+    motion_path = pjoin(motion_data_meta_dir, 'train', 'joint_vecs', motion_id + '.npy')
     if not os.path.exists(motion_path):
-        motion_path = pjoin(motion_data_meta_dir, 'val', 'new_joints', motion_id + '.npy')
+        motion_path = pjoin(motion_data_meta_dir, 'val', 'joint_vecs', motion_id + '.npy')
     if not os.path.exists(motion_path):
-        motion_path = pjoin(motion_data_meta_dir, 'test', 'new_joints', motion_id + '.npy')
+        motion_path = pjoin(motion_data_meta_dir, 'test', 'joint_vecs', motion_id + '.npy')
     assert os.path.exists(motion_path), motion_path
 
     motion = np.load(motion_path)
