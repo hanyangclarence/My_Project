@@ -73,23 +73,18 @@ def my_beat_alignment(music_beats, motion_beats):
 if __name__ == '__main__':
     seed_everything(2023)
 
-    music_dir = '/gpfs/u/home/LMCG/LMCGnngn/scratch/yanghan/aist_full/aist_plusplus_final/wav'
-    # music_dir = 'data/music/audios'
-    motion_meta_dir = 'data/motion'
+    music_dir = '/gpfs/u/home/LMCG/LMCGnngn/scratch/yanghan/My_Project/data/motion/edge_test/music_sliced/'
+    motion_meta_dir = '/gpfs/u/home/LMCG/LMCGnngn/scratch/yanghan/My_Project/data/motion/edge_test/motion_sliced/'
 
-
-    test_time = 300
-    duration = 10
     sr = 32000
 
-    prev_score = []
-    after_score = []
-    prev_linear_score = []
-    after_linear_score = []
+    all_scores = []
+    linear_scores = []
 
     music_id_list = os.listdir(music_dir)
-    motion_id_list = os.listdir(pjoin(motion_meta_dir, 'train', 'joint_vecs')) + os.listdir(pjoin(motion_meta_dir, 'test', 'joint_vecs')) + os.listdir(pjoin(motion_meta_dir, 'val', 'joint_vecs'))
-    motion_id_list = [s for s in motion_id_list if s.startswith('g')]
+    motion_id_list = os.listdir(motion_meta_dir)
+    music_id_list = sorted(music_id_list)
+    motion_id_list = sorted(motion_id_list)
 
     print(f'Total music: {len(music_id_list)}, total motion: {len(motion_id_list)}')
 
@@ -97,45 +92,21 @@ if __name__ == '__main__':
     motion_std = np.load(pjoin(motion_meta_dir, 'Std.npy'))
 
     count = 0
-    while count < test_time:
-        music_id = random.choice(music_id_list)
-        motion_id = random.choice(motion_id_list)
+    while count < len(music_id_list):
+        music_id = music_id_list[count]
+        motion_id = motion_id_list[count]
 
         waveform, _ = librosa.load(pjoin(music_dir, music_id), sr=sr)
 
         music_length = waveform.shape[0]
-        music_target_length = duration * sr
-        if music_length > music_target_length:
-            start_idx = random.randint(0, music_length - music_target_length)
-            waveform = waveform[start_idx:start_idx + music_target_length]
-        else:
-            print(f'!!!, {music_length}, {music_id}')
 
         music_beat = detect_music_beat(waveform, motion_fps=60)
         if len(music_beat) == 0:
             print(f'music beat length = 0! ')
             continue
 
-        motion_path = pjoin(motion_meta_dir, 'train', 'joint_vecs', motion_id)
-        if not os.path.exists(motion_path):
-            motion_path = pjoin(motion_meta_dir, 'test', 'joint_vecs', motion_id)
-        if not os.path.exists(motion_path):
-            motion_path = pjoin(motion_meta_dir, 'val', 'joint_vecs', motion_id)
-        assert os.path.exists(motion_path), motion_path
-
+        motion_path = pjoin(motion_meta_dir, motion_id)
         motion = np.load(motion_path)
-
-        # pad to similar length
-        motion_length = motion.shape[0]
-        motion_target_length = duration * 60
-        if motion_target_length // motion_length < 1:
-            start_idx = random.randint(0, motion_length - motion_target_length)
-            motion = motion[start_idx:start_idx + motion_target_length]
-        elif motion_target_length // motion_length == 1:
-            pass
-        else:
-            max_repeat = motion_target_length // motion_length + 1
-            motion = np.tile(motion, (max_repeat, 1))
 
         # Calculate alignment score before alignment
         try:
@@ -144,67 +115,17 @@ if __name__ == '__main__':
             print(e)
             continue
 
-        prev_alignment_score = beat_alignment(music_beat, motion_beat_prev)
-        prev_score.append(prev_alignment_score)
-        prev_linear_alignment_score = my_beat_alignment(music_beat, motion_beat_prev)
-        prev_linear_score.append(prev_linear_alignment_score)
+        score = beat_alignment(music_beat, motion_beat_prev)
+        all_scores.append(score)
+        linear_alignment_score = my_beat_alignment(music_beat, motion_beat_prev)
+        linear_scores.append(linear_alignment_score)
 
-        # Do alignment
-        mbeat = (np.rint(music_beat)).astype(int)
-
-        try:
-            # get motion visual beats
-            rec_ric_data = motion_process.recover_from_ric(torch.from_numpy(motion).unsqueeze(0).float(), 22)
-            skel = rec_ric_data.squeeze().numpy()
-            directogram, vimpact = visual_beat.calc_directogram_and_kinematic_offset(skel)
-            peakinds, peakvals = visual_beat.get_candid_peaks(vimpact, sampling_rate=60)
-            tempo_bpms, result = visual_beat.getVisualTempogram(vimpact, window_length=4, sampling_rate=60)
-            visual_beats = visual_beat.find_optimal_paths(
-                list(map(lambda x, y: (x, y), peakinds, peakvals)), result, sampling_rate=60
-            )
-            # turn visual beats into binary
-            vbeats = np.zeros((skel.shape[0]))
-            if len(visual_beats) != 0:
-                for beat in visual_beats[0]:
-                    idx = beat[0]
-                    vbeats[idx] = 1
-        except Exception as e:
-            print(e)
-            continue
-
-        # turn music beats also into binary
-        mbeats = np.zeros(motion_target_length)
-        for beat in mbeat:
-            if beat < len(mbeats):
-                mbeats[beat] = 1
-
-        try:
-            alignment = dtw(vbeats, mbeats, keep_internals=True, step_pattern=rabinerJuangStepPattern(6, "d"))
-            wq = warp(alignment, index_reference=False)
-            final_motion = interpolation.interp(motion, wq)
-        except Exception as e:  # if alignment fails, try a new one
-            print(e)
-            continue
-
-        try:
-            motion_beat_after = calc_motion_beat(final_motion)
-        except Exception as e:
-            print(e)
-            continue
-
-        after_alignment_score = beat_alignment(music_beat, motion_beat_after)
-        after_score.append(after_alignment_score)
-        after_linear_alignment_score = my_beat_alignment(music_beat, motion_beat_after)
-        after_linear_score.append(after_linear_alignment_score)
-
-        print(f'{count}, {prev_alignment_score}, {after_alignment_score} || {prev_linear_alignment_score}, {after_linear_alignment_score}')
+        print(f'{count}, {music_id}, {motion_id} {score}, {linear_alignment_score}')
 
         count += 1
 
-    print(sum(prev_score) / len(prev_score))
-    print(sum(after_score) / len(after_score))
-    print(sum(prev_linear_score) / len(prev_linear_score))
-    print(sum(after_linear_score) / len(after_linear_score))
+    print(sum(all_scores) / len(all_scores))
+    print(sum(linear_scores) / len(linear_scores))
 
 
 
