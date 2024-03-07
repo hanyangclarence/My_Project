@@ -103,6 +103,7 @@ if __name__ == '__main__':
         music_beat = detect_music_beat(waveform, motion_fps=60)
         if len(music_beat) == 0:
             print(f'music beat length = 0! ')
+            count += 1
             continue
 
         motion_path = pjoin(motion_meta_dir, motion_id)
@@ -113,6 +114,7 @@ if __name__ == '__main__':
             motion_beat_prev = calc_motion_beat(motion)
         except Exception as e:
             print(e)
+            count += 1
             continue
 
         score = beat_alignment(music_beat, motion_beat_prev)
