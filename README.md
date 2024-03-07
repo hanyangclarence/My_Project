@@ -74,24 +74,25 @@ The motion code is extracted by zero-padding the remaining parts
     ROUGE Score: 0.36931510966571246
     BERT Score: 0.8917101621627808
 
-    {'Matching_score': tensor(3.9815), 'gt_Matching_score': tensor(3.6208), 
-    'R_precision_top_1': tensor(0.4082), 'R_precision_top_2': tensor(0.6149), 'R_precision_top_3': tensor(0.7248), 
-    'gt_R_precision_top_1': tensor(0.4172), 'gt_R_precision_top_2': tensor(0.6037), 'gt_R_precision_top_3': tensor(0.7151), 
-    'Bleu_1': tensor(0.5288), 'Bleu_2': tensor(0.), 'Bleu_3': tensor(0.), 
-    'ROUGE_L': tensor(0.4014), 'CIDEr': tensor(0.0622), 
-    'Bleu_4': tensor(0.0928), 
-    'Bert_F1': tensor(0.4091)}
-
-    ---> [M2T_EL4_DL4_NH8_PS] BLEU: (1): 0.3536 (2): 0.1735 (3): 0.0889 (4): 0.0447
-    ---> [M2T_EL4_DL4_NH8_PS] ROUGE_L: 0.2834
-    ---> [M2T_EL4_DL4_NH8_PS] CIDER: 0.0622
-    ---> [M2T_EL4_DL4_NH8_PS] BERT SCORE: 0.4089
-    ========== Matching Score Summary ==========
-    ---> [M2T_EL4_DL4_NH8_PS] Mean: 3.0592 CInterval: 0.0000
-    ---> [ground truth] Mean: 2.9649 CInterval: 0.0000
-    ========== R_precision Summary ==========
-    ---> [M2T_EL4_DL4_NH8_PS](top 1) Mean: 0.5213 CInt: 0.0000;(top 2) Mean: 0.7091 CInt: 0.0000;(top 3) Mean: 0.8022 CInt: 0.0000;
-    ---> [ground truth](top 1) Mean: 0.5125 CInt: 0.0000;(top 2) Mean: 0.7026 CInt: 0.0000;(top 3) Mean: 0.7991 CInt: 0.0000;
+      ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓                                                                                                                                                                                                               
+      ┃         Test metric          ┃         DataLoader 0         ┃                                                                                                                                                                                                               
+      ┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩                                                                                                                                                                                                               
+      │       Metrics/Bert_F1        │     0.40897470712661743      │                                                                                                                                                                                                               
+      │        Metrics/Bleu_1        │      0.5283976793289185      │                                                                                                                                                                                                               
+      │        Metrics/Bleu_2        │             0.0              │                                                                                                                                                                                                               
+      │        Metrics/Bleu_3        │             0.0              │                                                                                                                                                                                                               
+      │        Metrics/Bleu_4        │     0.09266773611307144      │                                                                                                                                                                                                               
+      │        Metrics/CIDEr         │     0.06221524998545647      │                                                                                                                                                                                                               
+      │    Metrics/Matching_score    │      3.061572790145874       │                                                                                                                                                                                                               
+      │       Metrics/ROUGE_L        │      0.4010674059391022      │                                                                                                                                                                                                               
+      │  Metrics/R_precision_top_1   │      0.5202586054801941      │                                                                                                                                                                                                               
+      │  Metrics/R_precision_top_2   │      0.7159482836723328      │                                                                                                                                                                                                               
+      │  Metrics/R_precision_top_3   │      0.806034505367279       │                                                                                                                                                                                                               
+      │  Metrics/gt_Matching_score   │      2.9581973552703857      │                                                                                                                                                                                                               
+      │ Metrics/gt_R_precision_top_1 │      0.5118534564971924      │                                                                                                                                                                                                               
+      │ Metrics/gt_R_precision_top_2 │      0.709482729434967       │                                                                                                                                                                                                               
+      │ Metrics/gt_R_precision_top_3 │      0.7995689511299133      │                                                                                                                                                                                                               
+      └──────────────────────────────┴──────────────────────────────┘ 
 
 
 
