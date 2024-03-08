@@ -432,6 +432,7 @@ class MusicMotionTransformer(pl.LightningModule):
         batch: tp.Dict[str, tp.Union[torch.LongTensor, tp.List[str]]],
         duration: tp.Optional[float] = None,
         conditional_guidance_scale: tp.Optional[float] = None,
+        motion_conditional_guidance_scale: tp.Optional[float] = None,
         temperature: tp.Optional[float] = None,
         return_result_only: bool = False
     ):
@@ -439,7 +440,8 @@ class MusicMotionTransformer(pl.LightningModule):
 
         music_gen, motion_gen = self._generate_tokens(
             attributes, mode='music_motion', duration=duration, temperature=temperature,
-            conditional_guidance_scale=conditional_guidance_scale
+            conditional_guidance_scale=conditional_guidance_scale,
+            motion_conditional_guidance_scale=motion_conditional_guidance_scale
         )
         if return_result_only:
             return music_gen, motion_gen
@@ -548,11 +550,14 @@ class MusicMotionTransformer(pl.LightningModule):
         motion_code: tp.Optional[torch.LongTensor] = None,
         duration: tp.Optional[float] = None,
         conditional_guidance_scale: tp.Optional[float] = None,
+        motion_conditional_guidance_scale: tp.Optional[float] = None,
         temperature: float = 1.
     ) -> tp.Tuple[torch.LongTensor, torch.LongTensor]:
         duration = self.duration if duration is None else duration
         total_gen_len = int(duration * self.feature_frame_rate)
         assert mode in ['music_motion', 'music2motion', 'motion2music']
+
+        motion_conditional_guidance_scale = conditional_guidance_scale if motion_conditional_guidance_scale is None else motion_conditional_guidance_scale
 
         # generate by sampling from LM
         gen_tokens = self.model.generate(
@@ -566,6 +571,7 @@ class MusicMotionTransformer(pl.LightningModule):
             top_k=self.generation_params['top_k'],
             top_p=self.generation_params['top_p'],
             cfg_coef=self.generation_params['cfg_coef'] if conditional_guidance_scale is None else conditional_guidance_scale,
+            cfg_coef_motion=self.generation_params['cfg_coef'] if motion_conditional_guidance_scale is None else motion_conditional_guidance_scale
         )
 
         return gen_tokens

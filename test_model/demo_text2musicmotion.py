@@ -45,11 +45,18 @@ if __name__ == "__main__":
     )
 
     parser.add_argument(
-        "-gs",
-        "--guidance_scale",
+        "--gs",
         type=float,
         required=False,
         default=4.0,
+        help="Guidance scale (Large => better quality and relavancy to text; Small => better diversity)",
+    )
+
+    parser.add_argument(
+        "--gs_motion",
+        type=float,
+        required=False,
+        default=None,
         help="Guidance scale (Large => better quality and relavancy to text; Small => better diversity)",
     )
 
@@ -117,7 +124,8 @@ if __name__ == "__main__":
     os.makedirs(video_save_path, exist_ok=True)
     os.makedirs(feature_save_path, exist_ok=True)
     os.makedirs(joint_save_path, exist_ok=True)
-    guidance_scale = args.guidance_scale
+    guidance_scale = args.gs
+    guidance_scale_motion = args.gs_motion
     music_meta_dir = args.music_meta_dir
     duration = args.duration
 
@@ -214,7 +222,8 @@ if __name__ == "__main__":
             waveform_gen, motion_gen = model.generate_music_motion(
                 text_description=text_prompt,
                 duration=duration,
-                conditional_guidance_scale=guidance_scale
+                conditional_guidance_scale=guidance_scale,
+                motion_conditional_guidance_scale=guidance_scale_motion
             )
 
         os.makedirs(save_path, exist_ok=True)

@@ -130,11 +130,14 @@ class UniMuMo(nn.Module):
         batch_size: int = 1,
         duration: tp.Optional[float] = None,
         conditional_guidance_scale: tp.Optional[float] = None,
+        motion_conditional_guidance_scale: tp.Optional[float] = None,
         temperature: tp.Optional[float] = None
     ) -> tp.Tuple[np.ndarray, tp.Dict[str, np.ndarray]]:
         if text_description is None:
             text_description = ['<separation>']
         assert type(text_description) is list, 'input text should be list of str'
+
+        motion_conditional_guidance_scale = conditional_guidance_scale if motion_conditional_guidance_scale is None else motion_conditional_guidance_scale
 
         # generate batch_size number of samples for the prompt
         text_description = text_description * batch_size
@@ -147,6 +150,7 @@ class UniMuMo(nn.Module):
 
         music_gen, motion_gen = self.music_motion_lm.generate_sample(
             batch=batch, duration=duration, conditional_guidance_scale=conditional_guidance_scale,
+            motion_conditional_guidance_scale=motion_conditional_guidance_scale,
             temperature=temperature, return_result_only=True
         )
         return self.decode_music_motion(music_gen, motion_gen)

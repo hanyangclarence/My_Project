@@ -352,14 +352,15 @@ class LMModel(StreamingModule):
         motion_sequence: torch.LongTensor,
         cfg_conditions: CFGConditions,
         mode: str,
+        cfg_coef: float,
+        cfg_coef_motion: float,
         use_sampling: bool = False,
         temp: float = 1.0,
         top_k: int = 0,
         top_p: float = 0.0,
-        cfg_coef: tp.Optional[float] = None,
+
     ) -> tp.Tuple[torch.Tensor, torch.Tensor]:
         B = music_sequence.shape[0]
-        cfg_coef = self.cfg_coef if cfg_coef is None else cfg_coef
 
         sequence = torch.cat((music_sequence, motion_sequence), dim=-1)
         # get self-attn mask
@@ -381,7 +382,7 @@ class LMModel(StreamingModule):
             music_cond_logits, music_uncond_logits = music_all_logits.split(B, dim=0)  # [B, K, T, card]
             motion_cond_logits, motion_uncond_logits = motion_all_logits.split(B, dim=0)  # [B, K, T, card]
             music_logits = music_uncond_logits + (music_cond_logits - music_uncond_logits) * cfg_coef
-            motion_logits = motion_uncond_logits + (motion_cond_logits - motion_uncond_logits) * cfg_coef
+            motion_logits = motion_uncond_logits + (motion_cond_logits - motion_uncond_logits) * cfg_coef_motion
         else:
             music_logits = music_all_logits
             motion_logits = motion_all_logits
@@ -432,6 +433,7 @@ class LMModel(StreamingModule):
         top_k: int = 250,
         top_p: float = 0.0,
         cfg_coef: tp.Optional[float] = None,
+        cfg_coef_motion: tp.Optional[float] = None,
         check: bool = True,
     ) -> tp.Tuple[torch.LongTensor, torch.LongTensor]:
         assert not self.training, "generation shouldn't be used in training mode."
@@ -500,7 +502,7 @@ class LMModel(StreamingModule):
         motion_gen_sequence, _, motion_mask = pattern.build_pattern_sequence(motion_gen_codes, self.special_token_id)   # gen_sequence: padded with self.special_token_id
 
         gen_sequence_len = music_gen_sequence.shape[-1]  # gen_sequence shape is [B, K, S]
-        for offset in tqdm(range(1, gen_sequence_len), desc=f"Generating music & motion of shape {music_gen_sequence.shape}"):
+        for offset in tqdm(range(1, gen_sequence_len), desc=f"Generating music & motion of shape {music_gen_sequence.shape}, gs {cfg_coef} and {cfg_coef_motion}"):
             # get current sequence
             music_curr_sequence = music_gen_sequence[..., 0:offset]
             music_curr_mask = music_mask[None, ..., 0:offset].expand(B, -1, -1)
@@ -515,8 +517,8 @@ class LMModel(StreamingModule):
                 assert not (motion_curr_sequence == unknown_token).any()
             # sample next token from the model, next token shape is [B, K, 1]
             music_next_token, motion_next_token = self._sample_next_token(
-                music_curr_sequence, motion_curr_sequence, cfg_conditions, mode, use_sampling,
-                temp, top_k, top_p, cfg_coef=cfg_coef
+                music_curr_sequence, motion_curr_sequence, cfg_conditions, mode, cfg_coef, cfg_coef_motion,
+                use_sampling, temp, top_k, top_p,
             )
             # ensure the tokens that should be masked are properly set to special_token_id
             # as the model never output special_token_id
