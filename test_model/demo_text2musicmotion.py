@@ -49,7 +49,7 @@ if __name__ == "__main__":
         "--guidance_scale",
         type=float,
         required=False,
-        default=4,
+        default=4.0,
         help="Guidance scale (Large => better quality and relavancy to text; Small => better diversity)",
     )
 
@@ -109,14 +109,14 @@ if __name__ == "__main__":
     music_save_path = pjoin(save_path, 'music')
     motion_save_path = pjoin(save_path, 'motion')
     video_save_path = pjoin(save_path, 'video')
-    feature_263_save_path = pjoin(save_path, 'feature_263')
-    feature_22_3_save_path = pjoin(save_path, 'feature_22_3')
+    feature_save_path = pjoin(save_path, 'feature')
+    joint_save_path = pjoin(save_path, 'joint')
     os.makedirs(save_path, exist_ok=True)
     os.makedirs(music_save_path, exist_ok=True)
     os.makedirs(motion_save_path, exist_ok=True)
     os.makedirs(video_save_path, exist_ok=True)
-    os.makedirs(feature_263_save_path, exist_ok=True)
-    os.makedirs(feature_22_3_save_path, exist_ok=True)
+    os.makedirs(feature_save_path, exist_ok=True)
+    os.makedirs(joint_save_path, exist_ok=True)
     guidance_scale = args.guidance_scale
     music_meta_dir = args.music_meta_dir
     duration = args.duration
@@ -135,6 +135,11 @@ if __name__ == "__main__":
             if line.strip() in music_ignore_list:
                 continue
             music_data_list.append(line.strip())
+    with cs.open(pjoin(music_meta_dir, f'music4all_val.txt'), "r") as f:
+        for line in f.readlines():
+            if line.strip() in music_ignore_list:
+                continue
+            music_data_list.append(line.strip())
     print('number of testing data:', len(music_data_list))
 
     # load text prompt
@@ -145,8 +150,6 @@ if __name__ == "__main__":
 
     with open(pjoin(music_meta_dir, 'music4all_captions_mullama.json'), 'r') as caption_fd:
         mullama_caption = json.load(caption_fd)
-    with open(pjoin(music_meta_dir, 'music4all_captions_gpt.json'), 'r') as caption_fd:
-        gpt_caption = json.load(caption_fd)
 
     for music_id in music_data_list:
         current_caption = []
@@ -155,8 +158,6 @@ if __name__ == "__main__":
                 # as there are too much repetitive captions that contain "male vocalist" or "female vocalist",
                 # we just remove these captions
                 current_caption.append(mullama_caption[music_id])
-        if music_id in gpt_caption.keys():
-            current_caption.extend(gpt_caption[music_id])
 
         if len(current_caption) != 0:
             music_id_list.append(music_id)
@@ -167,7 +168,7 @@ if __name__ == "__main__":
         desc_choices = [f'The genre of the dance is {genre}.', f'The style of the dance is {genre}.',
                         f'This is a {genre} style dance.']
         dance_description = random.choice(desc_choices)
-        full_description = music_prompt_list[i] + ' <separation> ' + dance_description
+        full_description = music_prompt_list[i].capitalize() + ' <separation> ' + dance_description
         text_prompt_list.append(full_description)
 
     with cs.open(pjoin(save_path, 'text_prompt.txt'), 'w') as f:
@@ -193,15 +194,17 @@ if __name__ == "__main__":
         text_prompt = []
         music_id = []
         for batch_idx in range(len(text_prompt_full)):
-            if os.path.exists(pjoin(music_save_path, f'{music_id_full[batch_idx]}.mp3')):
+            if os.path.exists(pjoin(music_save_path, f'{music_id_full[batch_idx]}.mp3')) or os.path.exists(pjoin(music_save_path, f'{music_id_full[batch_idx]}.wav')):
                 continue
             else:
                 text_prompt.append(text_prompt_full[batch_idx])
                 music_id.append(music_id_full[batch_idx])
+
         if len(text_prompt) == 0:
             print(f'{count}-{count + args.batch_size} exists!')
             count += args.batch_size
             continue
+
         print(f'generating {len(text_prompt)} audio')
 
         for p in text_prompt:
@@ -214,47 +217,45 @@ if __name__ == "__main__":
                 conditional_guidance_scale=guidance_scale
             )
 
-            print(f"joint_gen: {motion_gen['joint'].shape}, waveform_gen: {waveform_gen.shape}")
+        os.makedirs(save_path, exist_ok=True)
 
-            os.makedirs(save_path, exist_ok=True)
+        for batch_idx in range(len(text_prompt)):
+            music_filename = "%s.mp3" % music_id[batch_idx]
+            music_path = os.path.join(music_save_path, music_filename)
+            try:
+                sf.write(music_path, waveform_gen[batch_idx], 32000)
+            except Exception as e:
+                print(e, file=sys.stderr)
+                continue
 
-            for batch_idx in range(len(text_prompt)):
-                music_filename = "%s.mp3" % music_id[batch_idx]
-                music_path = os.path.join(music_save_path, music_filename)
-                try:
-                    sf.write(music_path, waveform_gen[batch_idx], 32000)
-                except Exception as e:
-                    print(e)
-                    continue
+            motion_filename = "%s.mp4" % music_id[batch_idx]
+            motion_path = pjoin(motion_save_path, motion_filename)
+            try:
+                skel_animation.plot_3d_motion(
+                    motion_path, kinematic_chain, motion_gen['joint'][batch_idx], title='None', vbeat=None,
+                    fps=model.motion_fps, radius=4
+                )
+            except Exception as e:
+                print(e, file=sys.stderr)
+                continue
 
-                motion_filename = "%s.mp4" % music_id[batch_idx]
-                motion_path = pjoin(motion_save_path, motion_filename)
-                try:
-                    skel_animation.plot_3d_motion(
-                        motion_path, kinematic_chain, motion_gen['joint'][batch_idx], title='None', vbeat=None,
-                        fps=model.motion_fps, radius=4
-                    )
-                except Exception as e:
-                    print(e)
-                    continue
+            video_filename = "%s.mp4" % music_id[batch_idx]
+            video_path = pjoin(video_save_path, video_filename)
+            try:
+                subprocess.call(
+                    f"ffmpeg -i {motion_path} -i {music_path} -c copy {video_path}",
+                    shell=True)
+            except Exception as e:
+                print(e, file=sys.stderr)
+                continue
 
-                video_filename = "%s.mp4" % music_id[batch_idx]
-                video_path = pjoin(video_save_path, video_filename)
-                try:
-                    subprocess.call(
-                        f"ffmpeg -i {motion_path} -i {music_path} -c copy {video_path}",
-                        shell=True)
-                except Exception as e:
-                    print(e)
-                    continue
+            feature_filename = "%s.npy" % music_id[batch_idx]
+            feature_path = pjoin(feature_save_path, feature_filename)
+            np.save(feature_path, motion_gen['feature'][batch_idx])
 
-                feature_263_filename = "%s.npy" % music_id[batch_idx]
-                feature_263_path = pjoin(feature_263_save_path, feature_263_filename)
-                np.save(feature_263_path, motion_gen['feature'][batch_idx])
-
-                feature_22_3_filename = "%s.npy" % music_id[batch_idx]
-                feature_22_3_path = pjoin(feature_22_3_save_path, feature_22_3_filename)
-                np.save(feature_22_3_path, motion_gen['joint'][batch_idx])
+            joint_filename = "%s.npy" % music_id[batch_idx]
+            joint_path = pjoin(joint_save_path, joint_filename)
+            np.save(joint_path, motion_gen['joint'][batch_idx])
 
         count += args.batch_size
 

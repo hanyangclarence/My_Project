@@ -57,7 +57,7 @@ if __name__ == "__main__":
         "--guidance_scale",
         type=float,
         required=False,
-        default=3.0,
+        default=4.0,
         help="Guidance scale (Large => better quality and relavancy to text; Small => better diversity)",
     )
 
@@ -84,14 +84,14 @@ if __name__ == "__main__":
     music_save_path = pjoin(save_path, 'music')
     motion_save_path = pjoin(save_path, 'motion')
     video_save_path = pjoin(save_path, 'video')
-    feature_263_save_path = pjoin(save_path, 'feature_263')
-    feature_22_3_save_path = pjoin(save_path, 'feature_22_3')
+    feature_save_path = pjoin(save_path, 'feature')
+    joint_save_path = pjoin(save_path, 'joint')
     os.makedirs(save_path, exist_ok=True)
     os.makedirs(music_save_path, exist_ok=True)
     os.makedirs(motion_save_path, exist_ok=True)
     os.makedirs(video_save_path, exist_ok=True)
-    os.makedirs(feature_263_save_path, exist_ok=True)
-    os.makedirs(feature_22_3_save_path, exist_ok=True)
+    os.makedirs(feature_save_path, exist_ok=True)
+    os.makedirs(joint_save_path, exist_ok=True)
     guidance_scale = args.guidance_scale
     music_meta_dir = args.music_meta_dir
     motion_dir = args.motion_dir
@@ -102,37 +102,15 @@ if __name__ == "__main__":
         for line in f.readlines():
             motion_id_list.append(line.strip())
 
-    aist_genre_map = {
-        'gBR': 'break',
-        'gPO': 'pop',
-        'gLO': 'lock',
-        'gMH': 'middle hip-hop',
-        'gLH': 'LA style hip-hop',
-        'gHO': 'house',
-        'gWA': 'waack',
-        'gKR': 'krump',
-        'gJS': 'street jazz',
-        'gJB': 'ballet jazz'
-    }
-
-    motion_description_list = []
-    for motion_id in motion_id_list:
-        genre_id = motion_id.split('_')[0]
-        genre = aist_genre_map[genre_id]
-        desc_choices = [f'The genre of the dance is {genre}.', f'The style of the dance is {genre}.',
-                        f'This is a {genre} style dance.']
-        dance_description = random.choice(desc_choices)
-        motion_description_list.append(dance_description)
-
     with open(pjoin(music_meta_dir, 'music4all_captions_mullama.json'), 'r') as caption_fd:
         caption_dict = json.load(caption_fd)
         music_description_list = [caption_dict[k] for k in caption_dict.keys()]
         music_description_list = [s for s in music_description_list if 'male vocalist' not in s]
 
     text_prompt_list = []
-    for i, motion_description in enumerate(motion_description_list):
+    for i in range(len(motion_id_list)):
         music_description = random.choice(music_description_list)
-        text_prompt = music_description + ' <separation> ' + motion_description
+        text_prompt = music_description + ' <separation> '
         text_prompt_list.append(text_prompt)
 
     assert len(text_prompt_list) == len(motion_id_list)
@@ -173,7 +151,7 @@ if __name__ == "__main__":
         joint_gen = model.motion_vec_to_joint(
             torch.Tensor(model.normalize_motion(motion))
         )
-        print(f'waveform gen: {waveform_gen.shape}, joint gen: {joint_gen.shape}, motion shape: {motion.shape}')
+        print(f'waveform gen: {waveform_gen.shape}, joint gen: {joint_gen.shape}, motion shape: {motion.shape}, prompt: {text_prompt_list[count]}')
 
         os.makedirs(save_path, exist_ok=True)
 
@@ -182,7 +160,7 @@ if __name__ == "__main__":
         try:
             sf.write(music_path, waveform_gen.squeeze(), 32000)
         except Exception as e:
-            print(e)
+            print(e, file=sys.stderr)
             count += 1
             continue
 
@@ -194,7 +172,7 @@ if __name__ == "__main__":
                 fps=model.motion_fps, radius=4
             )
         except Exception as e:
-            print(e)
+            print(e, file=sys.stderr)
             count += 1
             continue
 
@@ -205,16 +183,16 @@ if __name__ == "__main__":
                 f"ffmpeg -i {motion_path} -i {music_path} -c copy {video_path}",
                 shell=True)
         except Exception as e:
-            print(e)
+            print(e, file=sys.stderr)
             count += 1
             continue
 
-        feature_263_filename = "%s.npy" % motion_id
-        feature_263_path = pjoin(feature_263_save_path, feature_263_filename)
-        np.save(feature_263_path, motion.squeeze())
+        feature_filename = "%s.npy" % motion_id
+        feature_path = pjoin(feature_save_path, feature_filename)
+        np.save(feature_path, motion.squeeze())
 
-        feature_22_3_filename = "%s.npy" % motion_id
-        feature_22_3_path = pjoin(feature_22_3_save_path, feature_22_3_filename)
-        np.save(feature_22_3_path, joint_gen.squeeze())
+        joint_filename = "%s.npy" % motion_id
+        joint_path = pjoin(joint_save_path, joint_filename)
+        np.save(joint_path, joint_gen.squeeze())
 
         count += 1
